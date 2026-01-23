@@ -1,0 +1,251 @@
+{
+    "supermarket": {
+        "header_styles": [
+            "formal",
+            "branded",
+            "clean"
+        ],
+        "common_categories": [
+            "FOOD",
+            "BEVERAGES",
+            "HOUSEHOLD",
+            "PERSONAL_CARE",
+            "SNACKS"
+        ],
+        "price_rounding": 1000,
+        "footer_messages": [
+            "Cảm ơn quý khách đã mua sắm!",
+            "Hẹn gặp lại quý khách!",
+            "Thank you for shopping with us!",
+            "Chúc quý khách một ngày tốt lành!"
+        ],
+        "payment_methods": [
+            "Tiền mặt",
+            "Thẻ",
+            "MoMo",
+            "ZaloPay",
+            "VNPay"
+        ],
+        "features": [
+            "barcode",
+            "loyalty_points",
+            "promotion_section"
+        ]
+    },
+    "convenience_store": {
+        "header_styles": [
+            "minimal",
+            "branded"
+        ],
+        "common_categories": [
+            "BEVERAGES",
+            "SNACKS",
+            "FOOD",
+            "PERSONAL_CARE"
+        ],
+        "price_rounding": 500,
+        "footer_messages": [
+            "Cảm ơn quý khách!",
+            "Thank you!",
+            "Have a nice day!"
+        ],
+        "payment_methods": [
+            "Tiền mặt",
+            "Thẻ",
+            "MoMo",
+            "ZaloPay"
+        ],
+        "features": [
+            "barcode",
+            "quick_receipt"
+        ]
+    },
+    "cafe": {
+        "header_styles": [
+            "trendy",
+            "minimal",
+            "artistic"
+        ],
+        "common_categories": [
+            "BEVERAGES",
+            "SNACKS"
+        ],
+        "drink_modifiers": [
+            "đá",
+            "nóng",
+            "ít đường",
+            "nhiều đá",
+            "không đá",
+            "thêm shot",
+            "size up"
+        ],
+        "sizes": [
+            "S",
+            "M",
+            "L",
+            "XL"
+        ],
+        "ice_levels": [
+            "100%",
+            "70%",
+            "50%",
+            "30%",
+            "0%"
+        ],
+        "sugar_levels": [
+            "100%",
+            "70%",
+            "50%",
+            "30%",
+            "0%"
+        ],
+        "footer_messages": [
+            "Enjoy your drink!",
+            "Chúc bạn ngon miệng!",
+            "Thank you • Cảm ơn"
+        ],
+        "payment_methods": [
+            "Tiền mặt",
+            "Card",
+            "MoMo",
+            "ZaloPay",
+            "Grabpay"
+        ],
+        "features": [
+            "order_number",
+            "drink_customization"
+        ]
+    },
+    "restaurant": {
+        "header_styles": [
+            "formal",
+            "traditional",
+            "modern"
+        ],
+        "common_categories": [
+            "FOOD",
+            "BEVERAGES"
+        ],
+        "table_range": [
+            1,
+            50
+        ],
+        "service_charge_rates": [
+            0,
+            5,
+            10
+        ],
+        "footer_messages": [
+            "Chúc quý khách ngon miệng!",
+            "Cảm ơn quý khách đã ghé quán!",
+            "Hẹn gặp lại quý khách!"
+        ],
+        "payment_methods": [
+            "Tiền mặt",
+            "Thẻ",
+            "Chuyển khoản"
+        ],
+        "features": [
+            "table_number",
+            "waiter_name",
+            "service_charge"
+        ]
+    },
+    "pharmacy": {
+        "header_styles": [
+            "formal",
+            "clean",
+            "medical"
+        ],
+        "common_categories": [
+            "PHARMACY",
+            "PERSONAL_CARE"
+        ],
+        "price_rounding": 1000,
+        "footer_messages": [
+            "Chúc quý khách sức khỏe!",
+            "Cảm ơn quý khách đã tin tưởng!",
+            "Hẹn gặp lại quý khách!"
+        ],
+        "payment_methods": [
+            "Tiền mặt",
+            "Thẻ",
+            "Bảo hiểm"
+        ],
+        "features": [
+            "prescription_info",
+            "dosage_instructions"
+        ]
+    },
+    "delivery": {
+        "header_styles": [
+            "app_branded",
+            "modern"
+        ],
+        "common_categories": [
+            "FOOD",
+            "BEVERAGES"
+        ],
+        "delivery_fee_range": [
+            0,
+            50000
+        ],
+        "platform_fee_range": [
+            0,
+            5000
+        ],
+        "discount_range": [
+            -50000,
+            0
+        ],
+        "footer_messages": [
+            "Cảm ơn bạn đã đặt hàng!",
+            "Chúc bạn ngon miệng!",
+            "Đánh giá đơn hàng để nhận ưu đãi!"
+        ],
+        "payment_methods": [
+            "COD",
+            "Ví điện tử",
+            "Thẻ tín dụng"
+        ],
+        "features": [
+            "order_id",
+            "delivery_fee",
+            "platform_fee",
+            "discount"
+        ]
+    },
+    "hotel": {
+        "header_styles": [
+            "luxury",
+            "formal",
+            "elegant"
+        ],
+        "room_types": [
+            "Standard",
+            "Superior",
+            "Deluxe",
+            "Suite",
+            "Presidential"
+        ],
+        "service_charge_rate": 5,
+        "vat_rate": 10,
+        "footer_messages": [
+            "Cảm ơn quý khách đã lưu trú!",
+            "Chúc quý khách thượng lộ bình an!",
+            "Welcome back anytime!"
+        ],
+        "payment_methods": [
+            "Tiền mặt",
+            "Thẻ tín dụng",
+            "Chuyển khoản"
+        ],
+        "features": [
+            "guest_name",
+            "room_number",
+            "check_in_out",
+            "minibar",
+            "spa"
+        ]
+    }
+}

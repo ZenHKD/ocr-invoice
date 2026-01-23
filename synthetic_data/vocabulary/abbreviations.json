@@ -1,0 +1,119 @@
+{
+    "location": {
+        "Thành phố Hồ Chí Minh": [
+            "TP.HCM",
+            "TPHCM",
+            "TP. HCM",
+            "HCM",
+            "HCMC"
+        ],
+        "Hồ Chí Minh": [
+            "HCM",
+            "TP.HCM",
+            "TPHCM"
+        ],
+        "Hà Nội": [
+            "HN",
+            "TP.HN",
+            "Hanoi"
+        ],
+        "Đà Nẵng": [
+            "ĐN",
+            "DN",
+            "Da Nang"
+        ],
+        "Cần Thơ": [
+            "CT",
+            "Can Tho"
+        ],
+        "Hải Phòng": [
+            "HP",
+            "Hai Phong"
+        ]
+    },
+    "invoice_terms": {
+        "Số lượng": [
+            "SL",
+            "S.L",
+            "Qty",
+            "QTY"
+        ],
+        "Đơn giá": [
+            "ĐG",
+            "Đ.G",
+            "Unit",
+            "Price"
+        ],
+        "Thành tiền": [
+            "T.Tiền",
+            "TT",
+            "Amount",
+            "Total"
+        ],
+        "Chiết khấu": [
+            "CK",
+            "C.K",
+            "Disc",
+            "Discount"
+        ],
+        "Giảm giá": [
+            "GG",
+            "G.G",
+            "Giảm",
+            "Sale"
+        ],
+        "Thuế GTGT": [
+            "VAT",
+            "GTGT",
+            "Tax"
+        ],
+        "Tổng cộng": [
+            "TỔNG",
+            "Total",
+            "T.Cộng"
+        ],
+        "Tiền mặt": [
+            "TM",
+            "Cash",
+            "Tiền"
+        ],
+        "Chuyển khoản": [
+            "CK",
+            "Transfer",
+            "Bank"
+        ]
+    },
+    "product_terms": {
+        "Cà phê": [
+            "CF",
+            "Coffee",
+            "Ca phe"
+        ],
+        "Trà sữa": [
+            "TS",
+            "Milk Tea",
+            "Tra sua"
+        ],
+        "Nước ngọt": [
+            "NN",
+            "Soft Drink",
+            "Nuoc ngot"
+        ],
+        "Số điện thoại": [
+            "SĐT",
+            "SDT",
+            "Tel",
+            "Phone"
+        ],
+        "Mã số thuế": [
+            "MST",
+            "Tax Code",
+            "Ma so thue"
+        ],
+        "Hóa đơn": [
+            "HĐ",
+            "HD",
+            "Invoice"
+        ]
+    }
+}

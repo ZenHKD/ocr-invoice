@@ -1,0 +1,163 @@
+{
+    "north": {
+        "dialects": {
+            "products": [
+                "Phở",
+                "Bún chả",
+                "Bánh cuốn",
+                "Chả cá",
+                "Bún đậu mắm tôm",
+                "Bánh tôm",
+                "Giò chả",
+                "Nem cua bể"
+            ],
+            "greetings": [
+                "Cảm ơn quý khách!",
+                "Xin cảm ơn!",
+                "Hẹn gặp lại quý khách!"
+            ],
+            "common_words": [
+                "Quán ăn",
+                "Cửa hiệu",
+                "Hiệu tạp hóa"
+            ]
+        },
+        "store_names": [
+            "Hà Thành",
+            "Kinh Bắc",
+            "Thăng Long",
+            "Đông Đô",
+            "Bắc Việt",
+            "Hà Nội",
+            "Thái Hà",
+            "Long Biên"
+        ],
+        "locations": [
+            "Hà Nội",
+            "Hải Phòng",
+            "Nam Định",
+            "Thái Bình",
+            "Ninh Bình",
+            "Hải Dương",
+            "Bắc Ninh",
+            "Hà Nam"
+        ],
+        "districts": [
+            "Ba Đình",
+            "Hoàn Kiếm",
+            "Đống Đa",
+            "Hai Bà Trưng",
+            "Cầu Giấy",
+            "Thanh Xuân",
+            "Hoàng Mai",
+            "Long Biên"
+        ]
+    },
+    "central": {
+        "dialects": {
+            "products": [
+                "Mì Quảng",
+                "Bánh bèo",
+                "Bánh nậm",
+                "Bánh bột lọc",
+                "Cao lầu",
+                "Bún bò Huế",
+                "Bánh khoái",
+                "Chè Huế"
+            ],
+            "greetings": [
+                "Cảm ơn quý khách!",
+                "Xin cảm ơn quý khách!",
+                "Chúc quý khách sức khỏe!"
+            ],
+            "common_words": [
+                "Quán",
+                "Tiệm",
+                "Hiệu"
+            ]
+        },
+        "store_names": [
+            "Miền Trung",
+            "Xứ Huế",
+            "Đà Thành",
+            "Phố Hội",
+            "Sông Hương",
+            "Kim Long",
+            "Thuận Hóa"
+        ],
+        "locations": [
+            "Đà Nẵng",
+            "Huế",
+            "Hội An",
+            "Quảng Nam",
+            "Quảng Ngãi",
+            "Bình Định",
+            "Phú Yên",
+            "Khánh Hòa"
+        ],
+        "districts": [
+            "Hải Châu",
+            "Thanh Khê",
+            "Sơn Trà",
+            "Ngũ Hành Sơn",
+            "Liên Chiểu",
+            "Cẩm Lệ"
+        ]
+    },
+    "south": {
+        "dialects": {
+            "products": [
+                "Hủ tiếu",
+                "Bánh mì",
+                "Cơm tấm",
+                "Bún mắm",
+                "Bún riêu",
+                "Bánh tráng trộn",
+                "Gỏi cuốn",
+                "Chả giò"
+            ],
+            "greetings": [
+                "Cám ơn quý khách!",
+                "Thank you!",
+                "Chúc quý khách vui vẻ!"
+            ],
+            "common_words": [
+                "Tiệm",
+                "Shop",
+                "Quán ăn"
+            ]
+        },
+        "store_names": [
+            "Sài Gòn",
+            "Mekong",
+            "Nam Bộ",
+            "Gia Định",
+            "Chợ Lớn",
+            "Bến Thành",
+            "Phú Mỹ",
+            "Thủ Đức"
+        ],
+        "locations": [
+            "TP.HCM",
+            "Bình Dương",
+            "Đồng Nai",
+            "Cần Thơ",
+            "Long An",
+            "Tây Ninh",
+            "Bà Rịa",
+            "An Giang"
+        ],
+        "districts": [
+            "Quận 1",
+            "Quận 3",
+            "Quận 5",
+            "Quận 7",
+            "Quận 10",
+            "Bình Thạnh",
+            "Phú Nhuận",
+            "Gò Vấp",
+            "Thủ Đức",
+            "Tân Bình"
+        ]
+    }
+}

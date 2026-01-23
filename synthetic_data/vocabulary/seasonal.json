@@ -1,0 +1,199 @@
+{
+    "tet": {
+        "months": [
+            1,
+            2
+        ],
+        "products": [
+            "Bánh chưng",
+            "Bánh tét",
+            "Mứt Tết",
+            "Hạt dưa",
+            "Hạt bí",
+            "Kẹo lạc",
+            "Bánh kẹo Tết",
+            "Hộp quà Tết",
+            "Giỏ quà Tết",
+            "Rượu Tết",
+            "Trà Tết",
+            "Cà phê Tết",
+            "Thịt kho tàu",
+            "Củ kiệu",
+            "Dưa hành",
+            "Mứt gừng",
+            "Mứt dừa",
+            "Mứt bí",
+            "Mứt sen",
+            "Mứt me",
+            "Hoa mai",
+            "Hoa đào",
+            "Phong bì lì xì",
+            "Đồ trang trí Tết"
+        ],
+        "promotions": [
+            "Khuyến mãi Tết",
+            "Sale cuối năm",
+            "Giảm giá mừng xuân",
+            "Ưu đãi Tết Nguyên Đán",
+            "Combo quà Tết",
+            "Giảm giá đón Tết",
+            "Mua 2 tặng 1",
+            "Giảm 20%",
+            "Giảm 30%",
+            "Mua 1 tặng 1"
+        ]
+    },
+    "mid_autumn": {
+        "months": [
+            8,
+            9
+        ],
+        "products": [
+            "Bánh trung thu",
+            "Đèn lồng",
+            "Bánh dẻo",
+            "Bánh nướng",
+            "Bánh TT nhân thập cẩm",
+            "Bánh TT nhân đậu xanh",
+            "Bánh TT nhân sen",
+            "Bánh TT Kinh Đô",
+            "Bánh TT Như Lan",
+            "Bánh TT Bibica",
+            "Hộp bánh trung thu",
+            "Đèn ông sao",
+            "Đồ chơi trung thu"
+        ],
+        "promotions": [
+            "Ưu đãi Trung Thu",
+            "Mua 6 tặng 1",
+            "Giảm giá bánh trung thu",
+            "Combo Trung Thu",
+            "Hộp quà Trung Thu giảm 15%"
+        ]
+    },
+    "back_to_school": {
+        "months": [
+            8,
+            9
+        ],
+        "products": [
+            "Vở",
+            "Bút",
+            "Cặp sách",
+            "Áo trắng",
+            "Quần tây",
+            "Balo",
+            "Bút chì",
+            "Thước kẻ",
+            "Tẩy",
+            "Sách giáo khoa",
+            "Dụng cụ học tập",
+            "Máy tính cầm tay",
+            "Bìa hồ sơ"
+        ],
+        "promotions": [
+            "Khuyến mãi mùa tựu trường",
+            "Back to School Sale",
+            "Giảm giá đồ dùng học tập",
+            "Combo tựu trường tiết kiệm"
+        ]
+    },
+    "christmas": {
+        "months": [
+            12
+        ],
+        "products": [
+            "Cây thông Noel",
+            "Đồ trang trí Giáng sinh",
+            "Bánh Giáng sinh",
+            "Kẹo Noel",
+            "Chocolate Noel",
+            "Quà Giáng sinh",
+            "Thiệp Noel",
+            "Đèn Noel",
+            "Ông già Noel",
+            "Túi quà Noel"
+        ],
+        "promotions": [
+            "Giáng sinh vui vẻ",
+            "Merry Christmas Sale",
+            "Ưu đãi Noel",
+            "Giảm giá mừng Giáng sinh"
+        ]
+    },
+    "summer": {
+        "months": [
+            5,
+            6,
+            7,
+            8
+        ],
+        "products": [
+            "Kem",
+            "Nước giải khát",
+            "Kem chống nắng",
+            "Quạt điện",
+            "Máy lạnh",
+            "Đồ bơi",
+            "Kính mát",
+            "Nón",
+            "Kem lạnh",
+            "Trà đá",
+            "Sinh tố",
+            "Nước dừa",
+            "Đá xay"
+        ],
+        "promotions": [
+            "Sale hè",
+            "Khuyến mãi mùa hè",
+            "Giảm giá hè sôi động",
+            "Mua sắm hè vui",
+            "Summer Sale",
+            "Hot Deal mùa hè"
+        ]
+    },
+    "valentines": {
+        "months": [
+            2
+        ],
+        "products": [
+            "Chocolate Valentine",
+            "Hoa hồng",
+            "Thiệp Valentine",
+            "Quà Valentine",
+            "Gấu bông",
+            "Bánh kem Valentine",
+            "Nước hoa",
+            "Trang sức",
+            "Socola hình trái tim"
+        ],
+        "promotions": [
+            "Happy Valentine",
+            "Quà tặng người yêu",
+            "Ưu đãi Valentine"
+        ]
+    },
+    "womens_day": {
+        "months": [
+            3,
+            10
+        ],
+        "products": [
+            "Hoa tươi",
+            "Mỹ phẩm",
+            "Nước hoa",
+            "Quà tặng phụ nữ",
+            "Túi xách",
+            "Trang sức",
+            "Son môi",
+            "Kem dưỡng da"
+        ],
+        "promotions": [
+            "Chúc mừng 8/3",
+            "Quà tặng phái đẹp",
+            "Ưu đãi Ngày Phụ Nữ",
+            "Sale 20/10",
+            "Quà tặng cho mẹ, cho chị"
+        ]
+    }
+}
