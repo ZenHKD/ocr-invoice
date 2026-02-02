@@ -10,7 +10,11 @@
             "BEVERAGES",
             "HOUSEHOLD",
             "PERSONAL_CARE",
-            "SNACKS"
+            "SNACKS",
+            "KITCHEN",
+            "CLOTHING",
+            "BOOKS",
+            "PETS"
         ],
         "price_rounding": 1000,
         "footer_messages": [
@@ -41,7 +45,8 @@
             "BEVERAGES",
             "SNACKS",
             "FOOD",
-            "PERSONAL_CARE"
+            "PERSONAL_CARE",
+            "BOOKS"
         ],
         "price_rounding": 500,
         "footer_messages": [

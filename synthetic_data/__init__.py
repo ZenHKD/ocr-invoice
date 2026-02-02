@@ -5,7 +5,7 @@ A modular system for generating realistic Vietnamese invoices/receipts
 with high variance for ML training data.
 
 All products are dynamically generated using Vietnamese vocabulary templates
-for maximum diversity (169M+ unique combinations).
+for maximum diversity.
 
 Modules:
     - catalog: Dynamic product catalog with Vietnamese vocabulary

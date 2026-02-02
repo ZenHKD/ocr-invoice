@@ -666,25 +666,25 @@ class DefectApplicator:
     def _apply_thermal_streak(self, img: Image.Image) -> Image.Image:
         """
         Apply vertical white streaks simulating dead pixels in thermal printers.
-        
+
         Common in older Vietnamese receipt printers where print heads have
         dead pixels that create characteristic vertical white lines.
         """
         img = img.convert("RGB")
         np_img = np.array(img, dtype=np.float32)
         h, w = np_img.shape[:2]
-        
+
         # Number of streaks (1-4)
         num_streaks = random.randint(1, 4)
-        
+
         for _ in range(num_streaks):
             # Random x position for vertical streak
             x = random.randint(10, w - 10)
             streak_width = random.randint(1, 3)
-            
+
             # Streak intensity varies - some are pure white, some are faded
             intensity = random.uniform(0.7, 1.0)
-            
+
             # Apply fade along the streak (not uniform)
             for y in range(h):
                 # Vary intensity along y-axis
@@ -693,27 +693,27 @@ class DefectApplicator:
                     if 0 <= x + dx < w:
                         # Blend toward white
                         np_img[y, x + dx] = np_img[y, x + dx] * (1 - local_intensity) + 255 * local_intensity
-        
+
         np_img = np.clip(np_img, 0, 255).astype(np.uint8)
         return Image.fromarray(np_img)
 
     def _apply_ink_fade_horizontal(self, img: Image.Image) -> Image.Image:
         """
         Apply horizontal ink fade effect - one side of receipt is lighter.
-        
+
         Simulates thermal printers running low on thermal coating or
         uneven pressure on the print head, common in Vietnamese receipts.
         """
         img = img.convert("RGB")
         np_img = np.array(img, dtype=np.float32)
         h, w = np_img.shape[:2]
-        
+
         # Decide which side fades (left or right)
         fade_from_left = random.choice([True, False])
-        
+
         # Fade intensity (how much lighter the faded side gets)
         max_fade = random.uniform(0.3, 0.6)
-        
+
         # Create gradient mask
         for x in range(w):
             if fade_from_left:
@@ -722,35 +722,35 @@ class DefectApplicator:
             else:
                 # Right side is faded
                 fade_factor = max_fade * (x / w)
-            
+
             # Apply fade (blend toward white)
             np_img[:, x] = np_img[:, x] * (1 - fade_factor) + 255 * fade_factor
-        
+
         np_img = np.clip(np_img, 0, 255).astype(np.uint8)
         return Image.fromarray(np_img)
 
     def _apply_red_stamp(self, img: Image.Image) -> Image.Image:
         """
         Apply official red company/tax stamp overlay.
-        
+
         Vietnamese VAT invoices and restaurant bills often have round or
         square red stamps that partially obscure text - a nightmare for OCR.
         """
         img = img.convert("RGBA")
         w, h = img.size
-        
+
         # Create stamp overlay
         overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
         draw = ImageDraw.Draw(overlay)
-        
+
         # Stamp position (usually bottom half, right side for VAT invoices)
         cx = random.randint(w // 2, w - 80)
         cy = random.randint(h // 2, h - 80)
-        
+
         # Stamp type: round or square
         stamp_type = random.choice(["round", "square"])
         stamp_size = random.randint(60, 120)
-        
+
         # Red color with transparency (looks like ink stamp)
         red_colors = [
             (200, 30, 30),   # Dark red
@@ -759,7 +759,7 @@ class DefectApplicator:
         ]
         stamp_color = random.choice(red_colors)
         alpha = random.randint(80, 150)  # Semi-transparent
-        
+
         if stamp_type == "round":
             # Draw concentric circles for stamp border
             for r in range(3):
@@ -769,7 +769,7 @@ class DefectApplicator:
                     outline=(*stamp_color, alpha),
                     width=2
                 )
-            
+
             # Add some text-like patterns inside (company name simulation)
             inner_radius = stamp_size - 15
             for angle in range(0, 360, 30):
@@ -779,18 +779,18 @@ class DefectApplicator:
                 x2 = cx + int(inner_radius * 0.8 * math.cos(rad))
                 y2 = cy + int(inner_radius * 0.8 * math.sin(rad))
                 draw.line((x1, y1, x2, y2), fill=(*stamp_color, alpha // 2), width=2)
-            
+
             # Center star or symbol
             star_size = stamp_size // 4
             draw.regular_polygon((cx, cy, star_size), 5, fill=(*stamp_color, alpha // 2))
-            
+
         else:  # square
             # Draw square stamp
             x1 = cx - stamp_size // 2
             y1 = cy - stamp_size // 2
             x2 = cx + stamp_size // 2
             y2 = cy + stamp_size // 2
-            
+
             # Border
             for offset in range(3):
                 draw.rectangle(
@@ -798,36 +798,36 @@ class DefectApplicator:
                     outline=(*stamp_color, alpha),
                     width=2
                 )
-            
+
             # Add horizontal lines (text simulation)
             for y in range(y1 + 15, y2 - 10, 12):
                 line_alpha = random.randint(alpha // 3, alpha // 2)
                 draw.line((x1 + 10, y, x2 - 10, y), fill=(*stamp_color, line_alpha), width=1)
-        
+
         # Slight rotation for realism
         rotation = random.uniform(-15, 15)
         overlay = overlay.rotate(rotation, center=(cx, cy), resample=Image.BICUBIC)
-        
+
         # Apply slight blur (ink bleeding)
         overlay = overlay.filter(ImageFilter.GaussianBlur(radius=0.5))
-        
+
         img = Image.alpha_composite(img, overlay)
         return img.convert("RGB")
 
     def _apply_handwriting_overlap(self, img: Image.Image) -> Image.Image:
         """
         Apply handwritten annotations that overlap printed text.
-        
+
         Vietnamese cafe/restaurant staff often use pens to:
         - Circle table numbers
         - Cross out items
-        - Write "Mang về" (Takeaway)  
+        - Write "Mang về" (Takeaway)
         - Add notes over printed text
         """
         img = img.convert("RGB")
         draw = ImageDraw.Draw(img)
         w, h = img.size
-        
+
         # Ink colors (ballpoint pen)
         ink_colors = [
             (0, 0, 180),      # Blue (most common)
@@ -836,26 +836,26 @@ class DefectApplicator:
             (0, 100, 0),      # Green
         ]
         ink_color = random.choice(ink_colors)
-        
+
         # Choose annotation type
         annotation_type = random.choice([
             "circle", "cross_out", "text_overlay", "arrow", "underline", "checkmark"
         ])
-        
+
         try:
             # Try to load a handwriting-style font
             font_size = random.randint(14, 24)
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
         except:
             font = ImageFont.load_default()
-        
+
         if annotation_type == "circle":
             # Circle a region (like table number)
             cx = random.randint(50, w - 50)
             cy = random.randint(50, h - 50)
             rx = random.randint(20, 50)
             ry = random.randint(15, 40)
-            
+
             # Draw imperfect circle (hand-drawn look)
             points = []
             for angle in range(0, 370, 10):
@@ -865,98 +865,98 @@ class DefectApplicator:
                 x = cx + (rx + jitter_x) * math.cos(rad)
                 y = cy + (ry + jitter_y) * math.sin(rad)
                 points.append((x, y))
-            
+
             draw.line(points, fill=ink_color, width=2)
-            
+
         elif annotation_type == "cross_out":
             # Cross out a line (cancelled item)
             y = random.randint(h // 4, 3 * h // 4)
             x1 = random.randint(10, w // 4)
             x2 = random.randint(w // 2, w - 10)
-            
+
             # Wavy cross-out line
             points = []
             for x in range(x1, x2, 5):
                 jitter = random.uniform(-2, 2)
                 points.append((x, y + jitter))
-            
+
             draw.line(points, fill=ink_color, width=2)
-            
+
             # Sometimes double cross-out
             if random.random() < 0.3:
                 points2 = [(p[0], p[1] + 5) for p in points]
                 draw.line(points2, fill=ink_color, width=2)
-                
+
         elif annotation_type == "text_overlay":
             # Write Vietnamese text over print
             texts = [
-                "Mang về", "Takeaway", "Bàn ", "Table ", 
+                "Mang về", "Takeaway", "Bàn ", "Table ",
                 "OK", "Đã TT", "Paid", "Chờ", "VIP",
                 "Giảm", "Free", "Tặng", "x2", "DONE"
             ]
             text = random.choice(texts)
             if "Bàn" in text or "Table" in text:
                 text += str(random.randint(1, 30))
-            
+
             x = random.randint(10, w - 100)
             y = random.randint(10, h - 40)
-            
+
             # Slight rotation for hand-written look
             text_img = Image.new("RGBA", (150, 50), (255, 255, 255, 0))
             text_draw = ImageDraw.Draw(text_img)
             text_draw.text((5, 5), text, font=font, fill=ink_color)
-            
+
             rotation = random.uniform(-10, 10)
             text_img = text_img.rotate(rotation, expand=True, resample=Image.BICUBIC)
-            
+
             # Paste onto main image
             img.paste(text_img, (x, y), text_img)
-            
+
         elif annotation_type == "arrow":
             # Draw an arrow pointing to something
             x1 = random.randint(w // 2, w - 30)
             y1 = random.randint(30, h - 30)
             x2 = x1 - random.randint(30, 80)
             y2 = y1 + random.randint(-20, 20)
-            
+
             # Arrow line
             draw.line((x1, y1, x2, y2), fill=ink_color, width=2)
-            
+
             # Arrow head
             angle = math.atan2(y2 - y1, x2 - x1)
             arrow_size = 10
-            draw.line((x2, y2, 
+            draw.line((x2, y2,
                        x2 - arrow_size * math.cos(angle - 0.5),
-                       y2 - arrow_size * math.sin(angle - 0.5)), 
+                       y2 - arrow_size * math.sin(angle - 0.5)),
                       fill=ink_color, width=2)
             draw.line((x2, y2,
                        x2 - arrow_size * math.cos(angle + 0.5),
                        y2 - arrow_size * math.sin(angle + 0.5)),
                       fill=ink_color, width=2)
-                      
+
         elif annotation_type == "underline":
             # Underline important text
             y = random.randint(h // 3, 2 * h // 3)
             x1 = random.randint(10, w // 3)
             x2 = random.randint(w // 2, w - 10)
-            
+
             # Wavy underline
             points = []
             for x in range(x1, x2, 3):
                 jitter = random.uniform(-1, 1)
                 points.append((x, y + jitter))
-            
+
             draw.line(points, fill=ink_color, width=2)
-            
+
         else:  # checkmark
             # Draw a checkmark
             x = random.randint(w - 80, w - 20)
             y = random.randint(20, h - 40)
-            
+
             # Checkmark shape
             draw.line((x, y + 15, x + 10, y + 25), fill=ink_color, width=3)
             draw.line((x + 10, y + 25, x + 30, y), fill=ink_color, width=3)
-        
+
         return img
 
 def create_defect_preset(preset: str) -> DefectConfig:

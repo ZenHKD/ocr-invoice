@@ -16,6 +16,13 @@ from typing import List, Dict, Tuple, Optional, Callable
 from enum import Enum
 from PIL import Image, ImageDraw, ImageFont
 import math
+import os
+import glob
+from pathlib import Path
+
+from synthetic_data import vietnamese_vocab
+VIETNAMESE_BRANDS = vietnamese_vocab.VIETNAMESE_BRANDS
+STORE_PROFILES = vietnamese_vocab.STORE_PROFILES
 
 
 class LayoutType(Enum):
@@ -49,89 +56,146 @@ class LayoutConfig:
 class FontManager:
     """Manage fonts for rendering Vietnamese text."""
 
-    # Font file paths that support Vietnamese (common Linux locations)
-    # These fonts have full Unicode Vietnamese support
-    FONT_PATHS = {
-        "sans": [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-            "/usr/share/fonts/truetype/lato/Lato-Regular.ttf",
-            "/usr/share/fonts/truetype/croscore/Arimo-Regular.ttf",
-        ],
-        "sans_bold": [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-            "/usr/share/fonts/truetype/lato/Lato-Bold.ttf",
-        ],
-        "serif": [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSerif-Regular.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSerif.ttf",
-            "/usr/share/fonts/truetype/croscore/Tinos-Regular.ttf",
-        ],
-        "serif_bold": [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSerif-Bold.ttf",
-        ],
-        "mono": [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
-            "/usr/share/fonts/truetype/croscore/Cousine-Regular.ttf",
-        ],
-        "handwritten": [
-            # Handwritten fonts often lack Vietnamese - fallback to sans
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        ],
-    }
-
-    # Cache for loaded fonts
+    # Font mapping
+    # Assuming fonts are at: synthetic_data/fonts/{category}/{Family}/{...}.ttf
+    _font_paths = {}
     _font_cache = {}
+    _font_dir = Path("synthetic_data/fonts")
+
+    @classmethod
+    def _scan_fonts(cls):
+        """Dynamically scan for fonts if not already loaded."""
+        if cls._font_paths:
+            return
+
+        # Define categories and patterns
+        patterns = {
+            "sans": ["formal/*/*-Regular.ttf", "formal/*/*-Medium.ttf"],
+            "sans_bold": ["formal/*/*-Bold.ttf"],
+            "serif": ["formal/*/*-Regular.ttf", "formal/*/*-Medium.ttf"],
+            "serif_bold": ["formal/*/*-Bold.ttf"],
+            "mono": ["thermal_printer/*/*-Regular.ttf", "dot_matrix/*/*-Regular.ttf"],
+            "handwritten": ["handwritten/*/*-Regular.ttf"],
+            "thermal": ["thermal_printer/*/*-Regular.ttf", "dot_matrix/*/*-Regular.ttf"],
+        }
+        
+        
+        # Absolute path to font dir
+        # We need to find the synthetic_data/fonts directory relative to this file
+        base_dir = Path(__file__).parent / "fonts"
+        
+        for category, glob_patterns in patterns.items():
+            cls._font_paths[category] = []
+            for pattern in glob_patterns:
+                # Use glob to find files
+                found = list(base_dir.glob(pattern))
+                
+                # VALIDATE FONTS due to box rendering issues
+                valid_fonts = []
+                for p in found:
+                    if cls._font_supports_vietnamese(str(p)):
+                         valid_fonts.append(str(p))
+                    else:
+                        pass # significantly slows down startup if we print every skip
+                
+                cls._font_paths[category].extend(valid_fonts)
+            
+            # If no fonts found (e.g. structure difference), fallback or empty?
+            if not cls._font_paths[category]:
+                # Try fallback to scanning everything in category dir?
+                cat_dir = base_dir / category.split("_")[0] # e.g. formal, handwritten
+                if cat_dir.exists():
+                     # Also validate fallbacks
+                     candidates = list(cat_dir.glob("**/*.ttf"))
+                     valid_fallbacks = [str(p) for p in candidates if cls._font_supports_vietnamese(str(p))]
+                     cls._font_paths[category].extend(valid_fallbacks)
+
+    @classmethod
+    def _font_supports_vietnamese(cls, font_path: str) -> bool:
+        """Check if font supports basic Vietnamese characters."""
+        try:
+            # Load font
+            font = ImageFont.truetype(font_path, 20)
+            
+            # Critical Vietnamese characters to check
+            # ế, ộ, ơ, ư, ắ, ậ, đ
+            test_chars = ["ế", "ộ", "ơ", "ư", "ắ", "ậ", "đ"]
+            
+            # Check if font has glyphs. getmask() is a reliable way to check
+            # if a char renders to something non-empty, but for 'box' characters
+            # we rely on FreeType behavior or just visual check.
+            # However, PIL doesn't easily expose "missing glyph" info.
+            # A common heuristic is checking getmetrics or similar but complex.
+            
+            # SIMPLER CHECK:
+            # Many fonts that don't support Vietnamese will default to a 'box' which HAS dimensions.
+            # But usually it's a specific '.notdef' glyph.
+            
+            # Let's try rendering a known char vs unknown char?
+            # Actually, most open source fonts we use MUST support VN.
+            # If the user says they are seeing boxes, it means some fonts in the dir are BAD.
+            # We will use a known set of good fonts or try to detect.
+            
+            # For now, let's just ensure we can load it.
+            # IMPROVEMENT: Use the 'cmap' table to check support if valid.
+            import fontTools.ttLib
+            tt = fontTools.ttLib.TTFont(font_path)
+            cmap = tt['cmap']
+            tables = cmap.getBestCmap()
+            
+            if not tables:
+                return False
+                
+            # Check unicode code points for test chars
+            for char in test_chars:
+                if ord(char) not in tables:
+                    return False
+                    
+            return True
+        except Exception:
+            return False
 
     @classmethod
     def get_font(cls, family: str = "sans", size: int = 14, bold: bool = False) -> ImageFont.FreeTypeFont:
-        """Get a font with Vietnamese support."""
-        # Adjust family for bold variant
-        if bold and f"{family}_bold" in cls.FONT_PATHS:
-            family = f"{family}_bold"
+        """Get a font instance."""
+        # Ensure fonts are scanned
+        cls._scan_fonts()
+        
+        key = f"{family}_{size}_{bold}"
+        
+        if key in cls._font_cache:
+            return cls._font_cache[key]
+            
+        # Select font path
+        paths = cls._font_paths.get(family, [])
+        if not paths:
+             # Fallback if specific family not found
+             if family.endswith("_bold"):
+                 fallback = family.replace("_bold", "")
+                 paths = cls._font_paths.get(fallback, [])
 
-        cache_key = (family, size)
-        if cache_key in cls._font_cache:
-            return cls._font_cache[cache_key]
-
-        font_paths = cls.FONT_PATHS.get(family, cls.FONT_PATHS["sans"])
-
-        for font_path in font_paths:
+        if not paths:
+            # Ultimate fallback
             try:
-                font = ImageFont.truetype(font_path, size)
-                cls._font_cache[cache_key] = font
-                return font
-            except (OSError, IOError):
-                continue
-
-        # Last resort: try by font name (works on some systems)
-        fallback_names = ["DejaVu Sans", "Liberation Sans", "FreeSans", "Noto Sans"]
-        for name in fallback_names:
-            try:
-                font = ImageFont.truetype(name, size)
-                cls._font_cache[cache_key] = font
-                return font
-            except (OSError, IOError):
-                continue
-
-        # Ultimate fallback to default (won't support Vietnamese well)
+                font = ImageFont.truetype("DejaVuSans.ttf", size) # specific to system
+            except:
+                font = ImageFont.load_default()
+            cls._font_cache[key] = font
+            return font
+            
+        font_path = random.choice(paths)
+        
         try:
-            return ImageFont.load_default()
-        except:
-            return None
+            font = ImageFont.truetype(font_path, size)
+            cls._font_cache[key] = font
+            return font
+        except Exception as e:
+            print(f"Error loading font {font_path}: {e}")
+            font = ImageFont.load_default()
+            cls._font_cache[key] = font
+            return font
+
+
 
     @classmethod
     def get_random_font(cls, size: int = 14, style: str = "any") -> ImageFont.FreeTypeFont:
@@ -155,12 +219,40 @@ class BaseLayout:
         self.img = None
         self.draw = None
         self.rendered_text = []  # Track text + polygons: [{"text": str, "polygon": [[x1,y1],...]}]
+        self.currency_format_style = "standard"  # Default
 
     def _init_canvas(self, bg_color: Tuple[int, int, int] = (255, 255, 255)):
         """Initialize the canvas."""
         self.img = Image.new("RGB", (self.width, self.height), bg_color)
         self.draw = ImageDraw.Draw(self.img)
         self.rendered_text = []  # Reset text tracking
+        
+        # Randomize currency format style per invoice
+        # 50% chance to have 'đ'/'₫' symbol, 50% chance to have no symbol
+        if random.random() < 0.5:
+            self.currency_format_style = "none"
+        else:
+            self.currency_format_style = random.choice(["standard", "symbol", "symbol_clean"])
+            
+    def _format_currency(self, value: float, currency: str = "VND") -> str:
+        """Format currency string based on current style."""
+        if currency != "VND":
+            return f"{value:.2f} {currency}"
+            
+        val_int = int(value)
+        # Use simple comma separator
+        val_str = f"{val_int:,}"
+        
+        if self.currency_format_style == "none":
+            return val_str
+        elif self.currency_format_style == "standard":
+            return f"{val_str}đ"
+        elif self.currency_format_style == "symbol":
+            return f"{val_str}₫"
+        elif self.currency_format_style == "symbol_clean":
+            return f"{val_str} ₫"
+        else:
+            return f"{val_str}đ"
 
     def _text_size(self, text: str, font: ImageFont.FreeTypeFont) -> Tuple[int, int]:
         """Get text dimensions."""
@@ -352,7 +444,10 @@ class ThermalReceiptLayout(BaseLayout):
 
             # Qty x Price = Total (right-aligned)
             if currency == "VND":
-                line = f"  {qty} x {int(unit_price):,} = {int(total):,}"
+                # Special detailed line for thermal
+                u_str = self._format_currency(unit_price, currency)
+                t_str = self._format_currency(total, currency)
+                line = f"  {qty} x {u_str} = {t_str}"
             else:
                 line = f"  {qty} x {unit_price:.2f} = {total:.2f}"
 
@@ -373,7 +468,7 @@ class ThermalReceiptLayout(BaseLayout):
         def draw_total_line(label: str, value: float):
             self._draw_text(label, self.margin, self.y_cursor, body_font, text_color)
             if currency == "VND":
-                val_str = f"{int(value):,}"
+                val_str = self._format_currency(value, currency)
             else:
                 val_str = f"{value:.2f}"
             tw, _ = self._text_size(val_str, body_font)
@@ -390,7 +485,7 @@ class ThermalReceiptLayout(BaseLayout):
         # Grand total - bigger
         self._draw_text("TỔNG CỘNG:", self.margin, self.y_cursor, header_font, text_color)
         if currency == "VND":
-            grand_str = f"{int(grand):,}đ"
+            grand_str = self._format_currency(grand, currency)
         else:
             grand_str = f"{grand:.2f} {currency}"
         tw, _ = self._text_size(grand_str, header_font)
@@ -626,8 +721,8 @@ class FormalVATLayout(BaseLayout):
                 item.get("desc", "")[:25],
                 random.choice(["cái", "hộp", "kg", "chai", "gói"]),
                 str(item.get("qty", 1)),
-                f"{int(item.get('unit', 0)):,}" if currency == "VND" else f"{item.get('unit', 0):.2f}",
-                f"{int(item.get('total', 0)):,}" if currency == "VND" else f"{item.get('total', 0):.2f}",
+                self._format_currency(item.get('unit', 0), currency) if currency == "VND" else f"{item.get('unit', 0):.2f}",
+                self._format_currency(item.get('total', 0), currency) if currency == "VND" else f"{item.get('total', 0):.2f}",
             ]
 
             for value, width in zip(row_data, cols):
@@ -650,7 +745,7 @@ class FormalVATLayout(BaseLayout):
         def draw_total_row(label, value):
             self._draw_text(label, total_x, self.y_cursor, body_font, color)
             if currency == "VND":
-                val_str = f"{int(value):,}"
+                val_str = self._format_currency(value, currency)
             else:
                 val_str = f"{value:.2f}"
             tw, _ = self._text_size(val_str, body_font)
@@ -755,7 +850,8 @@ class HandwrittenLayout(BaseLayout):
             total = item.get("total", 0)
 
             if currency == "VND":
-                line = f"{desc} x{qty} = {int(total):,}"
+                t_str = self._format_currency(total, currency)
+                line = f"{desc} x{qty} = {t_str}"
             else:
                 line = f"{desc} x{qty} = {total:.2f}"
 
@@ -773,7 +869,7 @@ class HandwrittenLayout(BaseLayout):
         # Grand total
         grand = data.get("grand_total", 0)
         if currency == "VND":
-            total_text = f"Tổng: {int(grand):,}đ"
+            total_text = f"Tổng: {self._format_currency(grand, currency)}"
         else:
             total_text = f"Tổng: {grand:.2f} {currency}"
 
@@ -835,7 +931,7 @@ class CafeMinimalLayout(BaseLayout):
 
             # Price right
             if currency == "VND":
-                price_str = f"{int(total):,}"
+                price_str = self._format_currency(total, currency)
             else:
                 price_str = f"{total:.2f}"
             tw, _ = self._text_size(price_str, body_font)
@@ -853,8 +949,9 @@ class CafeMinimalLayout(BaseLayout):
         # Total
         grand = data.get("grand_total", 0)
         self._draw_text("TOTAL", self.margin, self.y_cursor, title_font, black)
+        self._draw_text("TOTAL", self.margin, self.y_cursor, title_font, black)
         if currency == "VND":
-            total_str = f"{int(grand):,}đ"
+            total_str = self._format_currency(grand, currency)
         else:
             total_str = f"{grand:.2f}"
         tw, _ = self._text_size(total_str, title_font)
@@ -909,7 +1006,12 @@ class RestaurantBillLayout(BaseLayout):
         red = (180, 50, 50)
 
         # === HEADER ===
-        store_name = data.get("store_name", "NHÀ HÀNG")
+        store_name = random.choice(VIETNAMESE_BRANDS.get("cafes_restaurants", ["NHÀ HÀNG"]))
+        if "NHÀ HÀNG" in store_name:
+             pass 
+        elif random.random() < 0.3:
+             prefix = random.choice(["Nhà hàng", "Quán", "Bếp", "Tiệm ăn"])
+             store_name = f"{prefix} {store_name}"
         tw, _ = self._text_size(store_name.upper(), header_font)
         self._draw_text(store_name.upper(), (self.width - tw) // 2, self.y_cursor, header_font, black)
         self._advance_y(font=header_font)
@@ -956,7 +1058,7 @@ class RestaurantBillLayout(BaseLayout):
             # Item line
             self._draw_text(f"{qty}x {desc}", self.margin, self.y_cursor, body_font, black)
             if currency == "VND":
-                price_str = f"{int(total):,}"
+                price_str = self._format_currency(total, currency)
             else:
                 price_str = f"{total:.2f}"
             tw, _ = self._text_size(price_str, body_font)
@@ -979,7 +1081,7 @@ class RestaurantBillLayout(BaseLayout):
         def draw_total_line(label, value, font=body_font, color=black):
             self._draw_text(label, self.margin, self.y_cursor, font, color)
             if currency == "VND":
-                val_str = f"{int(value):,}"
+                val_str = self._format_currency(value, currency)
             else:
                 val_str = f"{value:.2f}"
             tw, _ = self._text_size(val_str, font)
@@ -999,8 +1101,9 @@ class RestaurantBillLayout(BaseLayout):
         # Grand total
         total_with_service = grand + service_charge
         self._draw_text("TỔNG CỘNG:", self.margin, self.y_cursor, header_font, black)
+        self._draw_text("TỔNG CỘNG:", self.margin, self.y_cursor, header_font, black)
         if currency == "VND":
-            grand_str = f"{int(total_with_service):,}đ"
+            grand_str = self._format_currency(total_with_service, currency)
         else:
             grand_str = f"{total_with_service:.2f}"
         tw, _ = self._text_size(grand_str, header_font)
@@ -1095,7 +1198,7 @@ class ModernPOSLayout(BaseLayout):
 
             # Price right-aligned
             if currency == "VND":
-                price_str = f"{int(total):,}đ"
+                price_str = self._format_currency(total, currency)
             else:
                 price_str = f"${total:.2f}"
             tw, _ = self._text_size(price_str, body_font)
@@ -1117,7 +1220,8 @@ class ModernPOSLayout(BaseLayout):
             color = black if bold else gray
             self._draw_text(label, self.margin, self.y_cursor, font, color)
             if currency == "VND":
-                val_str = f"{int(value):,}đ"
+                val_str = self._format_currency(value, currency)
+                # Ensure spacing isn't affected, though logic below calculates width
             else:
                 val_str = f"${value:.2f}"
             tw, _ = self._text_size(val_str, font)
@@ -1188,6 +1292,8 @@ class DeliveryReceiptLayout(BaseLayout):
 
         # === APP HEADER ===
         app_names = ["GrabFood", "ShopeeFood", "GoFood", "Baemin", "Loship"]
+        # Use existing list or vocab if available, but delivery apps are specific
+        # We can keep this list as it's specific to the layout type logic (colors)
         app_name = random.choice(app_names)
         tw, _ = self._text_size(app_name, header_font)
         self._draw_text(app_name, (self.width - tw) // 2, self.y_cursor, header_font, brand_color)
@@ -1264,10 +1370,7 @@ class DeliveryReceiptLayout(BaseLayout):
         def draw_fee_line(label, value, color=black):
             self._draw_text(label, self.margin, self.y_cursor, small_font, gray)
             if currency == "VND":
-                if value < 0:
-                    val_str = f"-{int(abs(value)):,}đ"
-                else:
-                    val_str = f"{int(value):,}đ"
+                 val_str = self._format_currency(value, currency)
             else:
                 val_str = f"${value:.2f}"
             tw, _ = self._text_size(val_str, small_font)
@@ -1290,7 +1393,7 @@ class DeliveryReceiptLayout(BaseLayout):
         total = subtotal + delivery_fee + platform_fee + discount
         self._draw_text("Tổng cộng", self.margin, self.y_cursor, header_font, black)
         if currency == "VND":
-            total_str = f"{int(total):,}đ"
+            total_str = self._format_currency(total, currency)
         else:
             total_str = f"${total:.2f}"
         tw, _ = self._text_size(total_str, header_font)
@@ -1333,8 +1436,7 @@ class HotelBillLayout(BaseLayout):
         gold = (180, 140, 50)
 
         # === HOTEL HEADER ===
-        hotel_names = ["Khách sạn Hoàng Gia", "Rex Hotel", "Majestic Saigon", 
-                       "Sheraton Saigon", "Park Hyatt", "InterContinental"]
+        hotel_names = VIETNAMESE_BRANDS.get("hotels", ["Khách sạn Hoàng Gia"])
         hotel_name = random.choice(hotel_names)
         tw, _ = self._text_size(hotel_name, title_font)
         self._draw_text(hotel_name, (self.width - tw) // 2, self.y_cursor, title_font, gold)
@@ -1405,7 +1507,7 @@ class HotelBillLayout(BaseLayout):
         for desc, amount in charges:
             self._draw_text(desc, self.margin, self.y_cursor, body_font, black)
             if currency == "VND":
-                amt_str = f"{int(amount):,}"
+                amt_str = self._format_currency(amount, currency)
             else:
                 amt_str = f"{amount:.2f}"
             tw, _ = self._text_size(amt_str, body_font)
@@ -1423,18 +1525,29 @@ class HotelBillLayout(BaseLayout):
         grand_total = subtotal + service_charge + vat
 
         self._draw_text("Tạm tính:", self.margin, self.y_cursor, body_font, gray)
-        tw, _ = self._text_size(f"{int(subtotal):,}", body_font)
-        self._draw_text(f"{int(subtotal):,}", self.width - self.margin - tw, self.y_cursor, body_font, black)
+        # Assuming formatting consistency is desired, we use helper but note original might have lacked symbol
+        # But user wants mixed, so helper is good.
+        if currency == "VND":
+             s_str = self._format_currency(subtotal, currency)
+        else:
+             s_str = f"{int(subtotal):,}" # Fallback
+             
+        tw, _ = self._text_size(s_str, body_font)
+        self._draw_text(s_str, self.width - self.margin - tw, self.y_cursor, body_font, black)
         self._advance_y(font=body_font)
 
         self._draw_text("Phí dịch vụ (5%):", self.margin, self.y_cursor, body_font, gray)
-        tw, _ = self._text_size(f"{int(service_charge):,}", body_font)
-        self._draw_text(f"{int(service_charge):,}", self.width - self.margin - tw, self.y_cursor, body_font, black)
+        if currency == "VND": v_str = self._format_currency(service_charge, currency) 
+        else: v_str = f"{int(service_charge):,}"
+        tw, _ = self._text_size(v_str, body_font)
+        self._draw_text(v_str, self.width - self.margin - tw, self.y_cursor, body_font, black)
         self._advance_y(font=body_font)
 
         self._draw_text("VAT (10%):", self.margin, self.y_cursor, body_font, gray)
-        tw, _ = self._text_size(f"{int(vat):,}", body_font)
-        self._draw_text(f"{int(vat):,}", self.width - self.margin - tw, self.y_cursor, body_font, black)
+        if currency == "VND": va_str = self._format_currency(vat, currency)
+        else: va_str = f"{int(vat):,}"
+        tw, _ = self._text_size(va_str, body_font)
+        self._draw_text(va_str, self.width - self.margin - tw, self.y_cursor, body_font, black)
         self._advance_y(font=body_font)
 
         self._advance_y(10)
@@ -1444,7 +1557,7 @@ class HotelBillLayout(BaseLayout):
         # Grand total
         self._draw_text("TỔNG CỘNG:", self.margin, self.y_cursor, header_font, black)
         if currency == "VND":
-            grand_str = f"{int(grand_total):,} VND"
+            grand_str = self._format_currency(grand_total, currency)
         else:
             grand_str = f"${grand_total:.2f}"
         tw, _ = self._text_size(grand_str, header_font)
@@ -1454,7 +1567,7 @@ class HotelBillLayout(BaseLayout):
         # Signature area
         self._advance_y(40)
         col_width = (self.width - 2 * self.margin) // 2
-        
+
         self._draw_text("Khách hàng", self.margin, self.y_cursor, small_font, gray)
         self._draw_text("Thu ngân", self.margin + col_width, self.y_cursor, small_font, gray)
         self._advance_y(font=small_font)
@@ -1492,14 +1605,38 @@ class UtilityBillLayout(BaseLayout):
         blue = (0, 80, 160)
 
         # Utility type
-        utility_types = [
-            ("Điện lực Việt Nam", "EVN", "HÓA ĐƠN TIỀN ĐIỆN"),
-            ("Cấp nước Sài Gòn", "SAWACO", "HÓA ĐƠN TIỀN NƯỚC"),
-            ("VNPT", "VNPT", "HÓA ĐƠN VIỄN THÔNG"),
-            ("Viettel", "Viettel", "HÓA ĐƠN DỊCH VỤ"),
-            ("FPT Telecom", "FPT", "HÓA ĐƠN INTERNET"),
-        ]
-        company, short_name, bill_title = random.choice(utility_types)
+        # Use dynamic providers if available
+        providers = VIETNAMESE_BRANDS.get("utility_providers", [])
+        if providers:
+             provider = random.choice(providers)
+             # Determine type based on name keywords
+             if "Điện" in provider or "EVN" in provider:
+                 short_name = "EVN"
+                 bill_title = "HÓA ĐƠN TIỀN ĐIỆN"
+                 color = (255, 100, 0) # Electricity orange/red often
+             elif "Nước" in provider or "SAWACO" in provider:
+                 short_name = "WTR"
+                 bill_title = "HÓA ĐƠN TIỀN NƯỚC"
+                 color = (0, 100, 200)
+             elif "Telecom" in provider or "VNPT" in provider or "Viettel" in provider or "FPT" in provider:
+                  short_name = "TEL"
+                  bill_title = "HÓA ĐƠN VIỄN THÔNG"
+                  color = (0, 80, 160)
+             else:
+                  short_name = "UTL"
+                  bill_title = "HÓA ĐƠN DỊCH VỤ"
+                  color = blue
+             company = provider
+        else:
+            utility_types = [
+                ("Điện lực Việt Nam", "EVN", "HÓA ĐƠN TIỀN ĐIỆN"),
+                ("Cấp nước Sài Gòn", "SAWACO", "HÓA ĐƠN TIỀN NƯỚC"),
+                ("VNPT", "VNPT", "HÓA ĐƠN VIỄN THÔNG"),
+                ("Viettel", "Viettel", "HÓA ĐƠN DỊCH VỤ"),
+                ("FPT Telecom", "FPT", "HÓA ĐƠN INTERNET"),
+            ]
+            company, short_name, bill_title = random.choice(utility_types)
+            color = blue
 
         # Header
         tw, _ = self._text_size(company, title_font)
@@ -1582,14 +1719,17 @@ class UtilityBillLayout(BaseLayout):
         self._advance_y(15)
 
         # Totals
+        # Totals
         self._draw_text(f"Tiền sử dụng:", self.margin, self.y_cursor, body_font, black)
-        tw, _ = self._text_size(f"{amount:,}đ", body_font)
-        self._draw_text(f"{amount:,}đ", self.width - self.margin - tw, self.y_cursor, body_font, black)
+        amt_str = self._format_currency(amount, "VND") # Utility is usually VND
+        tw, _ = self._text_size(amt_str, body_font)
+        self._draw_text(amt_str, self.width - self.margin - tw, self.y_cursor, body_font, black)
         self._advance_y(font=body_font)
 
         self._draw_text(f"Thuế VAT (10%):", self.margin, self.y_cursor, body_font, gray)
-        tw, _ = self._text_size(f"{vat:,}đ", body_font)
-        self._draw_text(f"{vat:,}đ", self.width - self.margin - tw, self.y_cursor, body_font, black)
+        vat_str = self._format_currency(vat, "VND")
+        tw, _ = self._text_size(vat_str, body_font)
+        self._draw_text(vat_str, self.width - self.margin - tw, self.y_cursor, body_font, black)
         self._advance_y(font=body_font)
 
         self._advance_y(5)
@@ -1597,8 +1737,9 @@ class UtilityBillLayout(BaseLayout):
         self._advance_y(10)
 
         self._draw_text("TỔNG CỘNG:", self.margin, self.y_cursor, header_font, black)
-        tw, _ = self._text_size(f"{total:,}đ", header_font)
-        self._draw_text(f"{total:,}đ", self.width - self.margin - tw, self.y_cursor, header_font, blue)
+        tot_str = self._format_currency(total, "VND")
+        tw, _ = self._text_size(tot_str, header_font)
+        self._draw_text(tot_str, self.width - self.margin - tw, self.y_cursor, header_font, blue)
         self._advance_y(font=header_font)
 
         # Payment deadline
@@ -1635,14 +1776,26 @@ class EcommerceReceiptLayout(BaseLayout):
         gray = (120, 120, 120)
 
         # E-commerce platforms
-        platforms = [
-            ("Shopee", (238, 77, 45)),
-            ("Lazada", (15, 0, 107)),
-            ("Tiki", (27, 168, 255)),
-            ("Sendo", (238, 28, 37)),
-            ("TikTok Shop", (0, 0, 0)),
-        ]
-        platform, brand_color = random.choice(platforms)
+        platforms_vocab = VIETNAMESE_BRANDS.get("ecommerce_platforms", [])
+        if platforms_vocab:
+            platform_name = random.choice(platforms_vocab)
+            # Map colors
+            if "Shopee" in platform_name: brand_color = (238, 77, 45)
+            elif "Lazada" in platform_name: brand_color = (15, 0, 107)
+            elif "Tiki" in platform_name: brand_color = (27, 168, 255)
+            elif "Sendo" in platform_name: brand_color = (238, 28, 37)
+            elif "TikTok" in platform_name: brand_color = (0, 0, 0)
+            else: brand_color = (50, 50, 50)
+            platform = platform_name
+        else:
+            platforms = [
+                ("Shopee", (238, 77, 45)),
+                ("Lazada", (15, 0, 107)),
+                ("Tiki", (27, 168, 255)),
+                ("Sendo", (238, 28, 37)),
+                ("TikTok Shop", (0, 0, 0)),
+            ]
+            platform, brand_color = random.choice(platforms)
 
         # Header
         tw, _ = self._text_size(platform, title_font)
@@ -1722,10 +1875,14 @@ class EcommerceReceiptLayout(BaseLayout):
 
         def draw_cost_line(label, value, color=gray):
             self._draw_text(label, self.margin, self.y_cursor, small_font, gray)
-            if value < 0:
-                val_str = f"-{int(abs(value)):,}đ"
+            self._draw_text(label, self.margin, self.y_cursor, small_font, gray)
+            if currency == "VND":
+                 val_str = self._format_currency(value, currency)
             else:
-                val_str = f"{int(value):,}đ"
+                if value < 0:
+                     val_str = f"-${int(abs(value)):.2f}"
+                else:
+                     val_str = f"${value:.2f}"
             tw, _ = self._text_size(val_str, body_font)
             self._draw_text(val_str, self.width - self.margin - tw, self.y_cursor, body_font, color)
             self._advance_y(font=body_font)
@@ -1746,8 +1903,12 @@ class EcommerceReceiptLayout(BaseLayout):
 
         # Total
         self._draw_text("Tổng thanh toán", self.margin, self.y_cursor, header_font, black)
-        tw, _ = self._text_size(f"{int(total):,}đ", header_font)
-        self._draw_text(f"{int(total):,}đ", self.width - self.margin - tw, self.y_cursor, header_font, brand_color)
+        if currency == "VND":
+            total_str = self._format_currency(total, currency)
+        else:
+            total_str = f"${total:.2f}"
+        tw, _ = self._text_size(total_str, header_font)
+        self._draw_text(total_str, self.width - self.margin - tw, self.y_cursor, header_font, brand_color)
         self._advance_y(font=header_font)
 
         # Payment method
@@ -1759,7 +1920,8 @@ class EcommerceReceiptLayout(BaseLayout):
         return self.img
 
 
-class TaxiReceiptLayout(BaseLayout):
+class TaxiReceiptLayout(BaseLayout):                
+
     """Taxi/ride-hailing receipt layout."""
 
     def __init__(self):
@@ -1785,17 +1947,28 @@ class TaxiReceiptLayout(BaseLayout):
         gray = (120, 120, 120)
 
         # Ride-hailing apps
-        apps = [
-            ("Grab", (0, 171, 102)),
-            ("Be", (255, 201, 60)),
-            ("Gojek", (0, 170, 90)),
-            ("Xanh SM", (0, 160, 100)),
-            ("Mai Linh", (0, 128, 0)),
-            ("Vinasun", (255, 255, 255)),
-        ]
-        app_name, brand_color = random.choice(apps)
-        if app_name == "Vinasun":
-            brand_color = (0, 100, 0)
+        taxi_vocab = VIETNAMESE_BRANDS.get("taxi_services", [])
+        if taxi_vocab:
+             app_name = random.choice(taxi_vocab)
+             if "Grab" in app_name: brand_color = (0, 171, 102)
+             elif "Be" in app_name: brand_color = (255, 201, 60)
+             elif "Gojek" in app_name: brand_color = (0, 170, 90)
+             elif "Xanh SM" in app_name: brand_color = (0, 160, 100)
+             elif "Mai Linh" in app_name: brand_color = (0, 128, 0)
+             elif "Vinasun" in app_name: brand_color = (0, 100, 0)
+             else: brand_color = (200, 200, 0) # Taxi yellow
+        else:
+            apps = [
+                ("Grab", (0, 171, 102)),
+                ("Be", (255, 201, 60)),
+                ("Gojek", (0, 170, 90)),
+                ("Xanh SM", (0, 160, 100)),
+                ("Mai Linh", (0, 128, 0)),
+                ("Vinasun", (255, 255, 255)),
+            ]
+            app_name, brand_color = random.choice(apps)
+            if app_name == "Vinasun":
+                brand_color = (0, 100, 0)
 
         # Header
         tw, _ = self._text_size(app_name, title_font)
@@ -1861,19 +2034,22 @@ class TaxiReceiptLayout(BaseLayout):
         total = base_fare + distance_fare + promo
 
         self._draw_text("Giá mở cửa:", self.margin, self.y_cursor, small_font, gray)
-        tw, _ = self._text_size(f"{base_fare:,}đ", body_font)
-        self._draw_text(f"{base_fare:,}đ", self.width - self.margin - tw, self.y_cursor, body_font, black)
+        bf_str = self._format_currency(base_fare, "VND")
+        tw, _ = self._text_size(bf_str, body_font)
+        self._draw_text(bf_str, self.width - self.margin - tw, self.y_cursor, body_font, black)
         self._advance_y(font=body_font)
 
         self._draw_text(f"Cước ({distance} km):", self.margin, self.y_cursor, small_font, gray)
-        tw, _ = self._text_size(f"{distance_fare:,}đ", body_font)
-        self._draw_text(f"{distance_fare:,}đ", self.width - self.margin - tw, self.y_cursor, body_font, black)
+        df_str = self._format_currency(distance_fare, "VND")
+        tw, _ = self._text_size(df_str, body_font)
+        self._draw_text(df_str, self.width - self.margin - tw, self.y_cursor, body_font, black)
         self._advance_y(font=body_font)
 
         if promo < 0:
             self._draw_text("Khuyến mãi:", self.margin, self.y_cursor, small_font, gray)
-            tw, _ = self._text_size(f"{promo:,}đ", body_font)
-            self._draw_text(f"{promo:,}đ", self.width - self.margin - tw, self.y_cursor, body_font, brand_color)
+            p_str = self._format_currency(promo, "VND")
+            tw, _ = self._text_size(p_str, body_font)
+            self._draw_text(p_str, self.width - self.margin - tw, self.y_cursor, body_font, brand_color)
             self._advance_y(font=body_font)
 
         self._advance_y(5)
@@ -1882,8 +2058,9 @@ class TaxiReceiptLayout(BaseLayout):
 
         # Total
         self._draw_text("Tổng cộng", self.margin, self.y_cursor, header_font, black)
-        tw, _ = self._text_size(f"{total:,}đ", header_font)
-        self._draw_text(f"{total:,}đ", self.width - self.margin - tw, self.y_cursor, header_font, brand_color)
+        tot_str = self._format_currency(total, "VND")
+        tw, _ = self._text_size(tot_str, header_font)
+        self._draw_text(tot_str, self.width - self.margin - tw, self.y_cursor, header_font, brand_color)
         self._advance_y(font=header_font)
 
         # Payment
@@ -1957,4 +2134,3 @@ class LayoutFactory:
 
         chosen = random.choices(types, weights=probs, k=1)[0]
         return cls.create(chosen)
-

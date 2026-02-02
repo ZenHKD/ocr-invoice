@@ -37,6 +37,9 @@ class GenerationScenario(Enum):
     RETAIL_FOCUS = "retail_focus"                # Focus on retail receipts
     RESTAURANT_FOCUS = "restaurant_focus"        # Focus on restaurant bills
     FORMAL_INVOICES = "formal_invoices"          # VAT invoices
+    MIXED_RANDOM = "mixed_random"                # 40-30-30 nutritious meal
+    PURE_RANDOM_FOCUS = "pure_random_focus"      # 100% Type 1
+    PSEUDO_FOCUS = "pseudo_focus"                # 100% Type 2
 
 
 @dataclass
@@ -77,6 +80,11 @@ class GenerationConfig:
         Region.CENTRAL: 0.20,
     })
 
+    # Text type distribution
+    text_type_ratios: Dict[str, float] = field(default_factory=lambda: {
+        "real": 1.0  # Default: 100% real corpus
+    })
+
     def __post_init__(self):
         if not self.layout_weights:
             self.layout_weights = {
@@ -115,6 +123,11 @@ def get_scenario_config(scenario: GenerationScenario) -> GenerationConfig:
             blank_ratio=0.05,
             unreadable_ratio=0.05,
             defect_preset="used_receipt",
+            text_type_ratios={
+                "pure_random": 0.40,
+                "pseudo_vietnamese": 0.30,
+                "real": 0.30,
+            }
         ),
 
         GenerationScenario.TRAINING_HARD: GenerationConfig(
@@ -180,6 +193,29 @@ def get_scenario_config(scenario: GenerationScenario) -> GenerationConfig:
                 LayoutType.SUPERMARKET_THERMAL: 0.2,
             },
         ),
+
+        GenerationScenario.MIXED_RANDOM: GenerationConfig(
+            realistic_ratio=0.85,
+            edge_case_ratio=0.10,
+            blank_ratio=0.025,
+            unreadable_ratio=0.025,
+            defect_preset="used_receipt",
+            text_type_ratios={
+                "pure_random": 0.40,
+                "pseudo_vietnamese": 0.30,
+                "real": 0.30,
+            }
+        ),
+
+        GenerationScenario.PURE_RANDOM_FOCUS: GenerationConfig(
+            realistic_ratio=0.90,
+            text_type_ratios={"pure_random": 1.0}
+        ),
+
+        GenerationScenario.PSEUDO_FOCUS: GenerationConfig(
+            realistic_ratio=0.90,
+            text_type_ratios={"pseudo_vietnamese": 1.0}
+        ),
     }
 
     return configs.get(scenario, GenerationConfig())
@@ -240,7 +276,9 @@ class SyntheticInvoiceGenerator:
     def _generate_realistic(self, sample_id: int) -> Dict:
         """Generate a realistic invoice."""
         # Generate purchase data
-        purchase_data = self.behavior.generate_purchase()
+        purchase_data = self.behavior.generate_purchase(
+            text_type_ratios=self.config.text_type_ratios
+        )
 
         # Add store information
         store_type = self._select_store_type()
@@ -252,13 +290,13 @@ class SyntheticInvoiceGenerator:
         # Select and render layout
         layout = LayoutFactory.create_random(self.config.layout_weights)
         img = layout.render(data)
-        
+
         # Get OCR ground truth with bounding boxes
         ocr_annotations = layout.get_ocr_annotations()
 
         # Apply defects
         img, applied_defects, defect_transforms = self.defect_applicator.apply_random_defects(img)
-        
+
         # Apply defect-induced coordinate transforms
         ocr_annotations = self._apply_defect_transforms(ocr_annotations, defect_transforms)
 
@@ -274,14 +312,16 @@ class SyntheticInvoiceGenerator:
     def _generate_with_edge_case(self, sample_id: int) -> Dict:
         """Generate an invoice with edge case applied."""
         # First generate a normal invoice
-        purchase_data = self.behavior.generate_purchase()
+        purchase_data = self.behavior.generate_purchase(
+            text_type_ratios=self.config.text_type_ratios
+        )
         store_type = self._select_store_type()
         store_data = self._generate_store_data(store_type)
         data = {**store_data, **purchase_data}
 
         layout = LayoutFactory.create_random(self.config.layout_weights)
         img = layout.render(data)
-        
+
         # Get OCR ground truth with bounding boxes before edge case transforms
         ocr_annotations = layout.get_ocr_annotations()
 
@@ -314,127 +354,124 @@ class SyntheticInvoiceGenerator:
         """Apply coordinate transforms to polygon annotations based on edge case metadata."""
         if not annotations or not edge_metadata:
             return annotations
-        
-        import numpy as np
-        import math
-        
+
+        from .geometry import rotate_point, apply_perspective_transform
+
         transformed = []
-        
+
         # Handle offset transform (textured_background, photo_of_receipt, etc.)
         offset_x = edge_metadata.get("offset_x", 0)
         offset_y = edge_metadata.get("offset_y", 0)
-        
+
         # Handle rotation
         rotation_angle = edge_metadata.get("rotation", 0)
-        
+
         # Handle perspective transform matrix
         perspective_matrix = edge_metadata.get("perspective_matrix", None)
-        
+
         # Get original image size for rotation center
         orig_width = edge_metadata.get("orig_width", 0)
         orig_height = edge_metadata.get("orig_height", 0)
-        
+
         for ann in annotations:
             text = ann.get("text", "")
             polygon = ann.get("polygon", [])
             bbox = ann.get("bbox", [])
-            
+
             # If no polygon, try to create from bbox
             if not polygon and len(bbox) == 4:
                 x1, y1, x2, y2 = bbox
                 polygon = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]
-            
+
             if len(polygon) != 4:
                 transformed.append(ann)
                 continue
-            
+
             new_polygon = []
             for point in polygon:
                 x, y = point[0], point[1]
-                
+
                 # Apply rotation if present
                 if rotation_angle != 0 and orig_width > 0 and orig_height > 0:
                     # Rotate around center of original image
                     cx, cy = orig_width / 2, orig_height / 2
-                    angle_rad = math.radians(-rotation_angle)  # Negative for clockwise
-                    cos_a, sin_a = math.cos(angle_rad), math.sin(angle_rad)
-                    
-                    # Translate to origin, rotate, translate back
-                    x_rel, y_rel = x - cx, y - cy
-                    x_rot = x_rel * cos_a - y_rel * sin_a
-                    y_rot = x_rel * sin_a + y_rel * cos_a
-                    
+                    # Note: geometry.rotate_point takes angle, but our manual code took -angle
+                    # check if math.radians(-rotation_angle) corresponds to rotate_point(..., -rotation_angle)
+                    # Helper uses: x_rot = x_rel * cos_a - y_rel * sin_a (std rotation)
+                    # Manual code: x_rot = x_rel * cos_a - y_rel * sin_a (std)
+                    # So sending -rotation_angle (clockwise) is correct
+                    x, y = rotate_point((x, y), (cx, cy), -rotation_angle)
+
                     # Compute new center after rotation expansion
                     new_cx = edge_metadata.get("new_width", orig_width) / 2
                     new_cy = edge_metadata.get("new_height", orig_height) / 2
-                    x, y = x_rot + new_cx, y_rot + new_cy
-                
+
+                    # Adjust for specific crop center shift (manual code did: x_rot + new_cx)
+                    # The rotate_point returns absolute coords relative to origin if we passed absolute center
+                    # Wait, manual code:
+                    # x_rel = x - cx
+                    # x = x_rot + new_cx
+                    # rotate_point returns: x_new = x_rel * cos - y_rel * sin + cx
+                    # It puts it back to 'cx'. We want it at 'new_cx'.
+
+                    # So we need to subtract the 'cx' added by rotate_point and add 'new_cx'
+                    x = x - cx + new_cx
+                    y = y - cy + new_cy
+
                 # Apply perspective transform if present
                 if perspective_matrix is not None:
-                    M = np.array(perspective_matrix)
-                    pt = np.array([x, y, 1.0])
-                    transformed_pt = M @ pt
-                    if transformed_pt[2] != 0:
-                        x = transformed_pt[0] / transformed_pt[2]
-                        y = transformed_pt[1] / transformed_pt[2]
-                
+                    x, y = apply_perspective_transform((x, y), perspective_matrix)
+
                 # Apply offset (always last)
                 x += offset_x
                 y += offset_y
-                
+
                 new_polygon.append([int(x), int(y)])
-            
+
             # Compute new bounding box from polygon
             xs = [p[0] for p in new_polygon]
             ys = [p[1] for p in new_polygon]
             new_bbox = [min(xs), min(ys), max(xs), max(ys)]
-            
+
             transformed.append({
                 "text": text,
                 "polygon": new_polygon,
                 "bbox": new_bbox  # Axis-aligned bounding box for backward compatibility
             })
-        
+
         return transformed
-            
+
     def _apply_defect_transforms(self, annotations: List[Dict], transforms: List[Dict]) -> List[Dict]:
         """Apply geometric transforms from defects to annotations."""
         if not annotations or not transforms:
             return annotations
-            
-        import numpy as np
-        
+
+        from .geometry import apply_perspective_transform
+
         transformed_anns = annotations
-        
+
         for transform in transforms:
             if transform.get("type") == "matrix":
-                matrix = np.array(transform["matrix"])
+                matrix = transform["matrix"]
                 new_anns = []
-                
+
                 for ann in transformed_anns:
                     polygon = ann.get("polygon", [])
-                    
+
                     # Ensure polygon exists
                     if not polygon and ann.get("bbox") and len(ann["bbox"]) == 4:
                         x1, y1, x2, y2 = ann["bbox"]
                         polygon = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]
-                        
+
                     if len(polygon) != 4:
                         new_anns.append(ann)
                         continue
-                        
+
                     new_poly = []
                     for pt in polygon:
-                        vec = np.array([pt[0], pt[1], 1.0])
-                        res = matrix @ vec
-                        
-                        # Perspective divide if needed
-                        if abs(res[2]) > 1e-6:
-                            x, y = res[0] / res[2], res[1] / res[2]
-                        else:
-                            x, y = res[0], res[1]
+                        x, y = apply_perspective_transform((pt[0], pt[1]), matrix)
                         new_poly.append([int(x), int(y)])
-                        
+
                     # Recalculate bbox from new polygon
                     xs = [p[0] for p in new_poly]
                     ys = [p[1] for p in new_poly]
@@ -447,9 +484,9 @@ class SyntheticInvoiceGenerator:
                     new_ann["polygon"] = new_poly
                     new_ann["bbox"] = new_bbox
                     new_anns.append(new_ann)
-                
+
                 transformed_anns = new_anns
-                
+
         return transformed_anns
 
     def _generate_blank(self, sample_id: int) -> Dict:
@@ -485,20 +522,54 @@ class SyntheticInvoiceGenerator:
 
     def _generate_store_data(self, store_type: StoreType) -> Dict:
         """Generate store information."""
-        store_names = {
+        from .vietnamese_vocab import STORE_PROFILES, REGIONS
+
+        # Mappings
+        store_key_map = {
+            StoreType.SUPERMARKET: "supermarket",
+            StoreType.CONVENIENCE: "convenience_store",
+            StoreType.TRADITIONAL_MARKET: "traditional_market",
+            StoreType.RESTAURANT: "restaurant",
+            StoreType.CAFE: "cafe",
+            StoreType.BAKERY: "bakery",
+            StoreType.ELECTRONICS: "electronics",
+            StoreType.PHARMACY: "pharmacy",
+            StoreType.HARDWARE: "hardware",
+            StoreType.CLOTHING: "clothing",
+        }
+
+        store_key = store_key_map.get(store_type)
+        profile = STORE_PROFILES.get(store_key, {})
+
+        # 1. Store Name Generation
+        # Try to get from REGIONS first (for variety), then fallback to hardcoded list (if needed)
+        store_names = []
+
+        # Simple hardcoded fallback lists just in case
+        fallback_names = {
             StoreType.SUPERMARKET: ["Big C", "Co.opmart", "Lotte Mart", "Vinmart", "Mega Market", "Aeon"],
             StoreType.CONVENIENCE: ["Circle K", "7-Eleven", "Family Mart", "B's Mart", "Vinmart+", "GS25"],
             StoreType.TRADITIONAL_MARKET: ["Chợ", "Tạp hóa", "Cửa hàng"],
             StoreType.RESTAURANT: ["Quán cơm", "Nhà hàng", "Quán ăn", "Bếp", "Kitchen"],
             StoreType.CAFE: ["The Coffee House", "Highlands Coffee", "Phúc Long", "Cộng Cà Phê", "Starbucks"],
-            StoreType.BAKERY: ["Paris Baguette", "Tous les Jours", "ABC Bakery", "Kinh Đô", "Bread Talk"],
-            StoreType.PHARMACY: ["Pharmacity", "Long Châu", "An Khang", "Nhà thuốc"],
-            StoreType.HARDWARE: ["Điện máy", "Vật liệu", "Kim khí"],
-            StoreType.ELECTRONICS: ["Điện máy xanh", "Thế giới di động", "FPT Shop", "CellphoneS"],
-            StoreType.CLOTHING: ["Uniqlo", "H&M", "Zara", "Canifa", "Ivy moda"],
         }
 
-        base_name = random.choice(store_names.get(store_type, ["Cửa hàng"]))
+        # If we have a region selected (we don't have context here, pick random), nice to use region-specific
+        # But for now, let's mix REGION store names if available
+        # Actually, REGIONS["north"]["store_names"] etc.
+        region_keys = list(REGIONS.keys())
+        if region_keys:
+            r_key = random.choice(region_keys)
+            if "store_names" in REGIONS[r_key]:
+                 # These are often generic "Names" like "Ha Noi", "Sai Gon", need prefix
+                 prefixes = ["Cửa hàng", "Siêu thị", "Shop"]
+                 store_names.extend([f"{random.choice(prefixes)} {n}" for n in REGIONS[r_key]["store_names"]])
+
+        # Fallback to defaults
+        default_names = fallback_names.get(store_type, ["Cửa hàng"])
+        store_names.extend(default_names)
+
+        base_name = random.choice(store_names)
 
         # Add branch number or location sometimes
         if random.random() < 0.4:
@@ -548,6 +619,16 @@ class SyntheticInvoiceGenerator:
         ]
         date_str = date.strftime(random.choice(date_formats))
 
+        # Load payment methods from profile if available
+        payment_method = "Tiền mặt"
+        if profile and "payment_methods" in profile:
+            payment_method = random.choice(profile["payment_methods"])
+
+        # Helper: Get footer message from profile
+        footer_msg = "Cảm ơn quý khách!"
+        if profile and "footer_messages" in profile:
+             footer_msg = random.choice(profile["footer_messages"])
+
         return {
             "store_name": store_name,
             "store_type": store_type.value,
@@ -557,6 +638,9 @@ class SyntheticInvoiceGenerator:
             "invoice_number": inv_num,
             "date": date_str,
             "barcode": "".join(str(random.randint(0, 9)) for _ in range(13)),
+            "payment_method": payment_method,
+            "footer_message": footer_msg, # Add this field to be used by layout
+            "features": profile.get("features", []) # Pass features for layout logic
         }
 
     def _save_sample(self, sample_id: int, img: Image.Image,
@@ -634,18 +718,18 @@ def generate_dataset(output_dir: str = "data/raw",
         for r in results:
             t = r.get("sample_type", "unknown")
             type_counts[t] = type_counts.get(t, 0) + 1
-            
+
             layout = r.get("layout_type", "unknown")
             if layout != "unknown":
                 layout_counts[layout] = layout_counts.get(layout, 0) + 1
 
         print(f"\n=== Generation Complete ===")
         print(f"Total samples: {len(results)}")
-        
+
         print(f"\nSample Types:")
         for t, count in sorted(type_counts.items()):
             print(f"  {t}: {count} ({100 * count / len(results):.1f}%)")
-        
+
         if layout_counts:
             print(f"\nLayout Types:")
             for layout, count in sorted(layout_counts.items()):

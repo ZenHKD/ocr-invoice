@@ -1,6 +1,8 @@
 **__pycache__**
 
-data/training
-data/validation
+data/train
+data/val
 data/test
+data/archive
 
+synthetic_data/fonts

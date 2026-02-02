@@ -245,7 +245,7 @@ class EdgeCaseGenerator:
             y2 = random.randint(0, canvas_h - new_h)
 
             canvas.paste(img2_rotated, (x2, y2))
-            
+
             base_metadata["num_receipts"] = 2
             base_metadata["overlap"] = True
             return canvas, base_metadata
@@ -260,7 +260,7 @@ class EdgeCaseGenerator:
             return self._generate_placeholder(), {"rotation": 0}
 
         orig_w, orig_h = img.size
-        
+
         angle = random.choice([
             random.uniform(-45, -20),
             random.uniform(20, 45),
@@ -285,7 +285,7 @@ class EdgeCaseGenerator:
             return self._generate_placeholder(), {"rotation": 180}
 
         orig_w, orig_h = img.size
-        
+
         # Add small random deviation from perfect 180
         angle = 180 + random.uniform(-3, 3)
         rotated = img.rotate(angle, expand=True, fillcolor=(255, 255, 255))
@@ -411,9 +411,9 @@ class EdgeCaseGenerator:
         canvas.paste(img_rotated, (x_offset, y_offset))
 
         return canvas, {
-            "overlapping": True, 
-            "offset_x": x_offset, 
-            "offset_y": y_offset, 
+            "overlapping": True,
+            "offset_x": x_offset,
+            "offset_y": y_offset,
             "rotation": angle,
             "orig_width": w,
             "orig_height": h,
@@ -691,7 +691,7 @@ class EdgeCaseGenerator:
     def _apply_hand_holding(self, img: Image.Image) -> Tuple[Image.Image, Dict]:
         """
         Simulate a hand holding the receipt.
-        
+
         Common in user photos where fingers/thumbs obscure edges.
         VLM must learn to separate finger pixels from text.
         """
@@ -717,18 +717,18 @@ class EdgeCaseGenerator:
 
         # How many fingers (1-4)
         num_fingers = random.randint(1, 4)
-        
+
         # Which edge (fingers usually from left/right/bottom)
         edge = random.choice(["left", "right", "bottom"])
-        
+
         for i in range(num_fingers):
             finger_width = random.randint(25, 45)
             finger_length = random.randint(60, 120)
-            
+
             # Add slight color variation per finger
             color_variation = random.randint(-15, 15)
             finger_color = tuple(max(0, min(255, c + color_variation)) for c in skin_color)
-            
+
             if edge == "left":
                 x = random.randint(-finger_width // 2, 10)
                 y = random.randint(h // 4, 3 * h // 4) + i * random.randint(-30, 30)
@@ -739,7 +739,7 @@ class EdgeCaseGenerator:
                 nail_color = (255, 220, 220)
                 nail_box = (x + finger_length - 15, y + 5, x + finger_length - 2, y + finger_width - 5)
                 draw.ellipse(nail_box, fill=(*nail_color, 220))
-                
+
             elif edge == "right":
                 x = w - random.randint(10, 50)
                 y = random.randint(h // 4, 3 * h // 4) + i * random.randint(-30, 30)
@@ -750,7 +750,7 @@ class EdgeCaseGenerator:
                 nail_color = (255, 220, 220)
                 nail_box = (x - finger_length + 2, y + 5, x - finger_length + 15, y + finger_width - 5)
                 draw.ellipse(nail_box, fill=(*nail_color, 220))
-                
+
             else:  # bottom - thumb usually
                 x = random.randint(10, w - 60) + i * random.randint(20, 50)
                 y = h - random.randint(10, 40)
@@ -759,17 +759,17 @@ class EdgeCaseGenerator:
                 thumb_length = random.randint(80, 140)
                 finger_box = (x, y - thumb_length + 20, x + thumb_width, y + 20)
                 draw.ellipse(finger_box, fill=(*finger_color, 255))
-        
+
         # Add slight blur for realism
         overlay = overlay.filter(ImageFilter.GaussianBlur(radius=1))
-        
+
         result = Image.alpha_composite(img, overlay)
         return result.convert("RGB"), {"hand_holding": True, "num_fingers": num_fingers, "edge": edge}
 
     def _apply_realistic_background(self, img: Image.Image) -> Tuple[Image.Image, Dict]:
         """
         Place receipt on realistic background.
-        
+
         Simulates photos taken on cafe tables, car dashboards, bedsheets, etc.
         These are common scenarios for receipt capture apps.
         """
@@ -777,7 +777,7 @@ class EdgeCaseGenerator:
             return self._generate_placeholder(), {}
 
         w, h = img.size
-        
+
         # Canvas size (receipt + margins)
         margin = random.randint(40, 100)
         canvas_w = w + margin * 2
@@ -785,7 +785,7 @@ class EdgeCaseGenerator:
 
         # Background type with realistic textures
         bg_type = random.choice([
-            "cafe_table", "dark_wood", "glass_surface", 
+            "cafe_table", "dark_wood", "glass_surface",
             "car_interior", "bedsheet", "kitchen_counter",
             "office_desk", "marble", "leather"
         ])
@@ -805,8 +805,8 @@ class EdgeCaseGenerator:
             canvas = Image.new("RGB", (canvas_w, canvas_h), (45, 30, 20))
             draw = ImageDraw.Draw(canvas)
             for i in range(0, canvas_h, random.randint(3, 8)):
-                color = (45 + random.randint(-10, 10), 
-                        30 + random.randint(-10, 10), 
+                color = (45 + random.randint(-10, 10),
+                        30 + random.randint(-10, 10),
                         20 + random.randint(-5, 5))
                 draw.line((0, i, canvas_w, i), fill=color, width=random.randint(2, 5))
 
@@ -854,7 +854,7 @@ class EdgeCaseGenerator:
             canvas = Image.fromarray(np_canvas)
 
         elif bg_type == "office_desk":
-            canvas = Image.new("RGB", (canvas_w, canvas_h), 
+            canvas = Image.new("RGB", (canvas_w, canvas_h),
                              random.choice([(200, 195, 185), (180, 170, 160), (220, 215, 200)]))
 
         elif bg_type == "marble":
@@ -887,7 +887,7 @@ class EdgeCaseGenerator:
         # Paste receipt with slight rotation
         angle = random.uniform(-5, 5)
         img_rotated = img.rotate(angle, expand=True, fillcolor=(255, 255, 255))
-        
+
         x = margin + random.randint(-10, 10)
         y = margin + random.randint(-10, 10)
         canvas.paste(img_rotated, (x, y))
@@ -897,7 +897,7 @@ class EdgeCaseGenerator:
     def _apply_tps_warp(self, img: Image.Image) -> Tuple[Image.Image, Dict]:
         """
         Apply Thin Plate Spline (TPS) warping for realistic 3D curvature.
-        
+
         Creates more natural-looking deformations than simple wave distortion.
         Simulates paper bending/curving when held or placed on uneven surfaces.
         """
@@ -910,11 +910,11 @@ class EdgeCaseGenerator:
 
         # Define control points (source and destination)
         num_control_points = random.randint(4, 8)
-        
+
         # Create grid of source points
         src_pts = []
         dst_pts = []
-        
+
         # Add corner points with slight displacement
         corners = [(0, 0), (w-1, 0), (0, h-1), (w-1, h-1)]
         for cx, cy in corners:
@@ -923,7 +923,7 @@ class EdgeCaseGenerator:
             dx = random.randint(-15, 15)
             dy = random.randint(-15, 15)
             dst_pts.append([cx + dx, cy + dy])
-        
+
         # Add random interior control points
         for _ in range(num_control_points - 4):
             x = random.randint(w // 4, 3 * w // 4)
@@ -933,10 +933,10 @@ class EdgeCaseGenerator:
             dx = random.randint(-25, 25)
             dy = random.randint(-25, 25)
             dst_pts.append([x + dx, y + dy])
-        
+
         src_pts = np.array(src_pts, dtype=np.float32)
         dst_pts = np.array(dst_pts, dtype=np.float32)
-        
+
         # Use OpenCV's ThinPlateSplineShapeTransformer if available
         # Fallback to a simpler polynomial warp
         try:
@@ -944,27 +944,27 @@ class EdgeCaseGenerator:
             # (TPS is complex, so we use a simplified approximation)
             map_x = np.zeros((h, w), dtype=np.float32)
             map_y = np.zeros((h, w), dtype=np.float32)
-            
+
             for y in range(h):
                 for x in range(w):
                     # Find weighted displacement based on control points
                     total_weight = 0
                     dx_sum = 0
                     dy_sum = 0
-                    
+
                     for i, (sx, sy) in enumerate(src_pts):
                         # Distance from this pixel to control point
                         dist = math.sqrt((x - sx) ** 2 + (y - sy) ** 2) + 1
                         weight = 1.0 / (dist * dist)
-                        
+
                         # Displacement of this control point
                         ddx = dst_pts[i][0] - sx
                         ddy = dst_pts[i][1] - sy
-                        
+
                         dx_sum += weight * ddx
                         dy_sum += weight * ddy
                         total_weight += weight
-                    
+
                     # Average displacement
                     if total_weight > 0:
                         map_x[y, x] = x + (dx_sum / total_weight) * 0.5
@@ -972,12 +972,12 @@ class EdgeCaseGenerator:
                     else:
                         map_x[y, x] = x
                         map_y[y, x] = y
-            
+
             result = cv2.remap(np_img, map_x, map_y, cv2.INTER_LINEAR,
                               borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
-            
+
             return Image.fromarray(result), {"tps_warp": True, "control_points": len(src_pts)}
-            
+
         except Exception as e:
             # Fallback: just return with slight perspective
             return img, {"tps_warp": False, "error": str(e)}
@@ -985,7 +985,7 @@ class EdgeCaseGenerator:
     def _apply_cylindrical_curl(self, img: Image.Image) -> Tuple[Image.Image, Dict]:
         """
         Apply cylindrical curl effect - like a freshly printed thermal receipt.
-        
+
         Thermal paper naturally curls when printed due to heat differential.
         Creates a characteristic cylinder-like curvature.
         """
@@ -1012,23 +1012,23 @@ class EdgeCaseGenerator:
                     center_y = h / 2
                     # Distance from center (normalized)
                     dist_from_center = (y - center_y) / center_y
-                    
+
                     # Curl creates horizontal compression/expansion
                     curl_factor = curl_intensity * (1 - dist_from_center ** 2)
-                    
+
                     # X mapping (slight squeeze toward center)
                     map_x[y, x] = x + (w/2 - x) * curl_factor * 0.2
                     map_y[y, x] = y
-                    
+
         else:  # vertical curl
             # Receipt curls top-bottom
             for y in range(h):
                 for x in range(w):
                     center_x = w / 2
                     dist_from_center = (x - center_x) / center_x
-                    
+
                     curl_factor = curl_intensity * (1 - dist_from_center ** 2)
-                    
+
                     map_x[y, x] = x
                     map_y[y, x] = y + (h/2 - y) * curl_factor * 0.2
 
@@ -1038,7 +1038,7 @@ class EdgeCaseGenerator:
         # Add subtle shadow gradient to simulate 3D depth
         result_img = Image.fromarray(result)
         draw = ImageDraw.Draw(result_img, "RGBA")
-        
+
         if curl_direction == "horizontal":
             # Top and bottom edges darker
             for i in range(20):
@@ -1061,4 +1061,3 @@ class EdgeCaseGenerator:
         w = random.randint(300, 600)
         h = random.randint(400, 800)
         return Image.new("RGB", (w, h), (200, 200, 200))
-

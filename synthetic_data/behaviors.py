@@ -220,7 +220,8 @@ class PurchaseBehavior:
             ),
         }
 
-    def generate_purchase(self, context: PurchaseContext = None) -> Dict:
+    def generate_purchase(self, context: PurchaseContext = None,
+                          text_type_ratios: Dict[str, float] = None) -> Dict:
         """Generate a realistic purchase based on context."""
         if context is None:
             context = self._generate_random_context()
@@ -228,12 +229,23 @@ class PurchaseBehavior:
         profile = context.customer_profile
         store_type = context.store_type
 
+        # Determine text type for this purchase
+        if text_type_ratios is None:
+            text_type = "real"
+        else:
+            text_type = random.choices(
+                list(text_type_ratios.keys()),
+                weights=list(text_type_ratios.values()),
+                k=1
+            )[0]
+
         # Get available products for this store (dynamically generated)
         available_products = self.catalog.get_products_for_store(
             store_type,
             region=context.region,
             month=context.date.month if context.date else None,
-            count=100  # Generate enough products to select from
+            count=100,  # Generate enough products to select from
+            text_type=text_type
         )
 
         if not available_products:
