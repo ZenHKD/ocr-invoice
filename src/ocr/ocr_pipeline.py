@@ -189,41 +189,55 @@ class OCRPipeline:
         
         return padded_image, scale, (h, w)
 
+    def order_points(self, pts):
+        """
+        Order points in [top-left, top-right, bottom-right, bottom-left] order.
+        """
+        rect = np.zeros((4, 2), dtype=np.float32)
+        
+        # Sum of coordinates
+        s = pts.sum(axis=1)
+        rect[0] = pts[np.argmin(s)]  # top-left
+        rect[2] = pts[np.argmax(s)]  # bottom-right
+        
+        # Diff of coordinates
+        diff = np.diff(pts, axis=1)
+        rect[1] = pts[np.argmin(diff)]  # top-right
+        rect[3] = pts[np.argmax(diff)]  # bottom-left
+        
+        return rect
+
     def crop_text_region(self, image, box):
         """
-        Crop and rectify a text region from the image given a polygon box.
-        Returns a horizontal text line image.
+        Crop and rectify a text region using perspective transform.
         """
-        box = np.array(box).astype(np.float32)
+        box = np.array(box, dtype=np.float32)
         
-        # Get bounding rect
-        rect = cv2.minAreaRect(box)
-        center, (width, height), angle = rect
+        # 1. Order points
+        rect = self.order_points(box)
+        (tl, tr, br, bl) = rect
         
-        # Ensure width > height (horizontal text)
-        if width < height:
-            width, height = height, width
-            angle += 90
+        # 2. Compute width and height of the new image
+        widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+        widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+        maxWidth = max(int(widthA), int(widthB))
+
+        heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+        heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+        maxHeight = max(int(heightA), int(heightB))
         
-        # Get rotation matrix
-        M = cv2.getRotationMatrix2D(center, angle, 1.0)
-        
-        # Rotate entire image
-        rotated = cv2.warpAffine(image, M, (image.shape[1], image.shape[0]))
-        
-        # Compute new bounding box after rotation
-        rot_box = cv2.transform(box.reshape(1, -1, 2), M).reshape(-1, 2)
-        x_min = int(max(0, rot_box[:, 0].min()))
-        x_max = int(min(image.shape[1], rot_box[:, 0].max()))
-        y_min = int(max(0, rot_box[:, 1].min()))
-        y_max = int(min(image.shape[0], rot_box[:, 1].max()))
-        
-        cropped = rotated[y_min:y_max, x_min:x_max]
-        
-        if cropped.size == 0:
-            return None
+        # 3. Construct destination points
+        dst = np.array([
+            [0, 0],
+            [maxWidth - 1, 0],
+            [maxWidth - 1, maxHeight - 1],
+            [0, maxHeight - 1]], dtype="float32")
             
-        return cropped
+        # 4. Perspective warp
+        M = cv2.getPerspectiveTransform(rect, dst)
+        warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
+        
+        return warped
 
     def preprocess_for_recognition(self, crop):
         """
