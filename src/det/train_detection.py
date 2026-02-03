@@ -178,9 +178,9 @@ if __name__ == '__main__':
     # Default Args for running directly
     # Can be overridden by notebook
     config = {
-        'train_dir': '../../data/train',
-        'val_dir': '../../data/val',
-        'save_dir': '../../best_model/det',
+        'train_dir': 'data/train',
+        'val_dir': 'data/val',
+        'save_dir': 'best_model/det',
         'backbone': 'resnet18',
         'batch_size': 8,
         'epochs': 20,
