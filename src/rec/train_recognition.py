@@ -168,9 +168,9 @@ def main(args):
     model = ParSeq(
         img_size=(32, 128), 
         patch_size=(4, 8), 
-        embed_dim=384, 
+        embed_dim=768, 
         enc_depth=12, 
-        num_heads=6, 
+        num_heads=12, 
         charset=VOCAB,
         max_len=args['max_len']
     )
@@ -228,9 +228,9 @@ def main(args):
 if __name__ == '__main__':
     # Default Config
     config = {
-        'train_dir': '../../data/train_crop',
-        'val_dir': '../../data/val_crop',
-        'save_dir': '../../best_model/rec',
+        'train_dir': 'data/train_crop',
+        'val_dir': 'data/val_crop',
+        'save_dir': 'best_model/rec',
         'batch_size': 64,
         'epochs': 20,
         'lr': 1e-4,

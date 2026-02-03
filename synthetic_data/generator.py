@@ -136,6 +136,11 @@ def get_scenario_config(scenario: GenerationScenario) -> GenerationConfig:
             blank_ratio=0.08,
             unreadable_ratio=0.07,
             defect_preset="damaged",
+            text_type_ratios={
+                "pure_random": 0.40,
+                "pseudo_vietnamese": 0.30,
+                "real": 0.30,
+            }
         ),
 
         GenerationScenario.VALIDATION: GenerationConfig(
@@ -144,6 +149,11 @@ def get_scenario_config(scenario: GenerationScenario) -> GenerationConfig:
             blank_ratio=0.00,
             unreadable_ratio=0.00,
             defect_preset="good_scan",
+            text_type_ratios={
+                "pure_random": 0.40,
+                "pseudo_vietnamese": 0.30,
+                "real": 0.30,
+            }
         ),
 
         GenerationScenario.EDGE_CASES_FOCUS: GenerationConfig(
@@ -152,6 +162,11 @@ def get_scenario_config(scenario: GenerationScenario) -> GenerationConfig:
             blank_ratio=0.05,
             unreadable_ratio=0.05,
             defect_preset="extreme",
+            text_type_ratios={
+                "pure_random": 0.40,
+                "pseudo_vietnamese": 0.30,
+                "real": 0.30,
+            }
         ),
 
         GenerationScenario.RETAIL_FOCUS: GenerationConfig(
@@ -395,26 +410,13 @@ class SyntheticInvoiceGenerator:
                 if rotation_angle != 0 and orig_width > 0 and orig_height > 0:
                     # Rotate around center of original image
                     cx, cy = orig_width / 2, orig_height / 2
-                    # Note: geometry.rotate_point takes angle, but our manual code took -angle
-                    # check if math.radians(-rotation_angle) corresponds to rotate_point(..., -rotation_angle)
-                    # Helper uses: x_rot = x_rel * cos_a - y_rel * sin_a (std rotation)
-                    # Manual code: x_rot = x_rel * cos_a - y_rel * sin_a (std)
-                    # So sending -rotation_angle (clockwise) is correct
                     x, y = rotate_point((x, y), (cx, cy), -rotation_angle)
 
                     # Compute new center after rotation expansion
                     new_cx = edge_metadata.get("new_width", orig_width) / 2
                     new_cy = edge_metadata.get("new_height", orig_height) / 2
 
-                    # Adjust for specific crop center shift (manual code did: x_rot + new_cx)
-                    # The rotate_point returns absolute coords relative to origin if we passed absolute center
-                    # Wait, manual code:
-                    # x_rel = x - cx
-                    # x = x_rot + new_cx
-                    # rotate_point returns: x_new = x_rel * cos - y_rel * sin + cx
-                    # It puts it back to 'cx'. We want it at 'new_cx'.
-
-                    # So we need to subtract the 'cx' added by rotate_point and add 'new_cx'
+                    # Subtract the 'cx' added by rotate_point and add 'new_cx'
                     x = x - cx + new_cx
                     y = y - cy + new_cy
 
@@ -554,9 +556,6 @@ class SyntheticInvoiceGenerator:
             StoreType.CAFE: ["The Coffee House", "Highlands Coffee", "Phúc Long", "Cộng Cà Phê", "Starbucks"],
         }
 
-        # If we have a region selected (we don't have context here, pick random), nice to use region-specific
-        # But for now, let's mix REGION store names if available
-        # Actually, REGIONS["north"]["store_names"] etc.
         region_keys = list(REGIONS.keys())
         if region_keys:
             r_key = random.choice(region_keys)

@@ -3,6 +3,7 @@
 data/train
 data/val
 data/test
-data/archive
+data/train_crop
+data/val_crop
 
 synthetic_data/fonts

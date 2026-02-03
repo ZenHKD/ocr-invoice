@@ -17,7 +17,7 @@ Usage:
     python run_synthetic.py
 
     # Custom generation
-    python run_synthetic.py --num 500 --scenario training_hard --output data/train
+    python run_synthetic.py --num 100 --scenario training_balanced --output data/train
 
     # Validation set (cleaner images)
     python run_synthetic.py --num 100 --scenario validation --output data/val

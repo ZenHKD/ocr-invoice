@@ -153,10 +153,10 @@ class OCRPipeline:
         self.rec_model = ParSeq(
             img_size=self.rec_img_size,
             patch_size=(4, 8),
-            embed_dim=384,
+            embed_dim=768,
             enc_depth=12,
             dec_depth=1,
-            num_heads=6,
+            num_heads=12,
             charset=VOCAB,
             max_len=64  # Must match training config
         )

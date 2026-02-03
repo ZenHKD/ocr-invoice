@@ -7,7 +7,7 @@ from functools import partial
 
 
 class ViTEncoder(nn.Module):
-    def __init__(self, img_size=(32, 128), patch_size=(4, 8), in_chans=3, embed_dim=384, depth=12, num_heads=6, mlp_ratio=4., qkv_bias=True):
+    def __init__(self, img_size=(32, 128), patch_size=(4, 8), in_chans=3, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4., qkv_bias=True):
         super().__init__()
 
         self.patch_embed = PatchEmbed(
